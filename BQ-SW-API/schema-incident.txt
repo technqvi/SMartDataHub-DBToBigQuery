@@ -1,0 +1,55 @@
+demo-version
+https://cloud.google.com/blog/products/data-analytics/bigquery-gains-change-data-capture-functionality
+https://protobuf.dev/getting-started/pythontutorial/
+
+https://console.cloud.google.com/apis/library/bigquerystorage.googleapis.com?project=pongthorn
+
+-----------------------
+incident
+
+#Replace CDC_Demo_Dataset with your preferred dataset name
+ALTER TABLE `pongthorn.SMartDataAnalytics.incident`
+SET OPTIONS (
+ max_staleness = INTERVAL 0 MINUTE);
+
+
+#Replace CDC_Demo_Dataset with your preferred dataset name
+CREATE TABLE `pongthorn.SMartDataAnalytics.incident` (
+ incident_id INT64 PRIMARY KEY NOT ENFORCED,
+ open_datetime DATETIME,
+ close_datetime DATETIME,
+ serial STRING,
+ brand STRING,
+ model STRING,
+ incident_type STRING,
+ service_type STRING,
+ severity  STRING
+
+)
+CLUSTER BY
+ incident_id
+OPTIONS(max_staleness = INTERVAL 60 MINUTE);
+
+
+
+#Replace CDC_Demo_Dataset with your preferred dataset name
+CREATE OR REPLACE TABLE `pongthorn.SMartDataAnalytics.incident` (
+ incident_id INT64 PRIMARY KEY NOT ENFORCED,
+ brand STRING,
+ model STRING,
+ service_type STRING,
+ severity  STRING
+
+)
+CLUSTER BY
+ incident_id
+OPTIONS(max_staleness = INTERVAL 15 MINUTE);
+
+
+C:\protoc-25.1-win64\bin
+run compile proto file to get xxxx_pb2.py
+C:\protoc-25.1-win64\bin\protoc.exe  --python_out=. incident_data.proto
+
+
+SELECT * FROM `pongthorn.SMartDataAnalytics.incident` 
+

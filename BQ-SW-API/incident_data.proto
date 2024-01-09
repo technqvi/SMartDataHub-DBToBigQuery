@@ -1,0 +1,13 @@
+// Copyright 2023 Google. This software is provided as-is, without warranty or representation for any use or purpose.
+// Your use of it is subject to your agreement with Google.
+ 
+syntax = "proto2";
+ 
+message IncidentData {
+  optional int64 incident_id = 1;
+  optional string brand = 2; 
+  optional string model = 3;
+  optional string service_type = 4;
+  optional string severity = 5;
+  optional string _CHANGE_TYPE = 6;
+}

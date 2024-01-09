@@ -1,0 +1,19 @@
+[
+ {
+  "incident_id": 1,
+  "brand": "VMWare",
+  "model": "vSphere Standard",
+  "service_type": "Incident",
+  "severity": "Major",
+  "_CHANGE_TYPE": "UPSERT"
+ },
+ {
+  "incident_id": 2,
+  "brand": "HPE",
+  "model": "StoreOnce 5250",
+  "service_type": "Request",
+  "severity": "Minor",
+  "_CHANGE_TYPE": "UPSERT"
+ }
+
+]

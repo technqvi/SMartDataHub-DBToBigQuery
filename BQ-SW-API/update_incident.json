@@ -1,0 +1,31 @@
+[
+ {
+  "incident_id": 1, 
+  "_CHANGE_TYPE": "DELETE"
+ },
+ {
+  "incident_id": 2,
+  "brand": "VMWare",
+  "model": "vSphere Standard",
+  "service_type": "Incident",
+  "severity": "Critical",
+  "_CHANGE_TYPE": "UPSERT"
+ },
+ {
+  "incident_id": 3,
+  "brand": "HPE",
+  "model": "StoreOnce 5250",
+  "service_type": "Incident",
+  "severity": "Major",
+  "_CHANGE_TYPE": "UPSERT"
+ },
+ {
+  "incident_id": 4,
+  "brand": "NetApp",
+  "model": "SG5660",
+  "service_type": "Request",
+  "severity": "Minor",
+  "_CHANGE_TYPE": "UPSERT"
+ }
+
+]
