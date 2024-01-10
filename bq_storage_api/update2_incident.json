@@ -1,0 +1,23 @@
+[
+ {
+  "incident_id": 2, 
+  "_CHANGE_TYPE": "DELETE"
+ },
+ {
+  "incident_id": 5,
+  "brand": "Yip",
+  "model": "Incident Management System",
+  "service_type": "Incident",
+  "severity": "Minor",
+  "_CHANGE_TYPE": "UPSERT"
+ },
+ {
+  "incident_id": 3,
+  "brand": "HPE",
+  "model": "StoreOnce 5250",
+  "service_type": "Incident",
+  "severity": "Critical",
+  "_CHANGE_TYPE": "UPSERT"
+ }
+
+]

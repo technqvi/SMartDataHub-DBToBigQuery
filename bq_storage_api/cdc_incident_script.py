@@ -129,7 +129,7 @@ if __name__ == "__main__":
     ###### Uncomment the above block to provide additional logging capabilities ######
  
     # with open('new_incident.json', 'r') as json_file:
-    with open('update_incident.json','r') as json_file:
+    with open('update2_incident.json','r') as json_file:
         data = json.load(json_file)
     BigQueryStorageWriteAppend.append_rows_proto2("pongthorn","SMartDataAnalytics", "incident",data=data) 
     # Change this to your specific BigQuery project, dataset, table details
