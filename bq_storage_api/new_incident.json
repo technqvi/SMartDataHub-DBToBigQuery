@@ -1,19 +1,14 @@
 [
  {
   "incident_id": 1,
-  "brand": "VMWare",
-  "model": "vSphere Standard",
+  "inventory_id": 11,
+  "incident_type": "ABC",
   "service_type": "Incident",
   "severity": "Major",
-  "_CHANGE_TYPE": "UPSERT"
- },
- {
-  "incident_id": 2,
-  "brand": "HPE",
-  "model": "StoreOnce 5250",
-  "service_type": "Request",
-  "severity": "Minor",
+  "status": "Close",
+  "open_datetime": 1704888000000000, 
+  "close_datetime": 1704902400000000,
+  "update_at":  1704977471527884,
   "_CHANGE_TYPE": "UPSERT"
  }
-
 ]

@@ -7,49 +7,49 @@ https://console.cloud.google.com/apis/library/bigquerystorage.googleapis.com?pro
 -----------------------
 incident
 
-#Replace CDC_Demo_Dataset with your preferred dataset name
-ALTER TABLE `pongthorn.SMartDataAnalytics.incident`
-SET OPTIONS (
- max_staleness = INTERVAL 0 MINUTE);
+# exluded deleted column lik Merging
 
-
-#Replace CDC_Demo_Dataset with your preferred dataset name
-CREATE TABLE `pongthorn.SMartDataAnalytics.incident` (
- incident_id INT64 PRIMARY KEY NOT ENFORCED,
- open_datetime DATETIME,
- close_datetime DATETIME,
- serial STRING,
- brand STRING,
- model STRING,
- incident_type STRING,
- service_type STRING,
- severity  STRING
-
-)
-CLUSTER BY
- incident_id
-OPTIONS(max_staleness = INTERVAL 60 MINUTE);
-
-
-
-#Replace CDC_Demo_Dataset with your preferred dataset name
 CREATE OR REPLACE TABLE `pongthorn.SMartDataAnalytics.incident` (
  incident_id INT64 PRIMARY KEY NOT ENFORCED,
- brand STRING,
- model STRING,
+ inventory_id INT64,
+ incident_type STRING,
  service_type STRING,
- severity  STRING
-
+ severity  STRING,
+ status  STRING,
+ open_datetime TIMESTAMP,
+ close_datetime TIMESTAMP,
+ update_at TIMESTAMP
 )
 CLUSTER BY
  incident_id
 OPTIONS(max_staleness = INTERVAL 15 MINUTE);
 
+ALTER TABLE `pongthorn.SMartDataAnalytics.incident`
+SET OPTIONS (
+ max_staleness = INTERVAL 0 MINUTE);
+
+
+----------------------------------------
+
+
 
 C:\protoc-25.1-win64\bin
 run compile proto file to get xxxx_pb2.py
+d:
+cd D:\PythonDev\MyQuantFinProject\SMartDataHub-DBToBigQuery\bq_storage_api
 C:\protoc-25.1-win64\bin\protoc.exe  --python_out=. incident_data.proto
 
 
 SELECT * FROM `pongthorn.SMartDataAnalytics.incident` 
 
+
+https://www.epochconverter.com/
+
+truncate table pongthorn.SMartDataAnalytics.incident
+
+#Replace CDC_Demo_Dataset with your preferred dataset name
+SELECT
+ upsert_stream_apply_watermark
+FROM `SMartDataAnalytics`.INFORMATION_SCHEMA.TABLES
+WHERE
+ table_name = "incident"

@@ -5,9 +5,13 @@ syntax = "proto2";
  
 message IncidentData {
   optional int64 incident_id = 1;
-  optional string brand = 2; 
-  optional string model = 3;
+  optional int64 inventory_id = 2;
+  optional string incident_type = 3;
   optional string service_type = 4;
   optional string severity = 5;
-  optional string _CHANGE_TYPE = 6;
+  optional string status = 6;
+  optional int64 open_datetime = 7;
+  optional int64 close_datetime = 8;
+  optional int64 update_at = 9;
+  optional string _CHANGE_TYPE = 10;
 }
