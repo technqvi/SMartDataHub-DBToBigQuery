@@ -1,5 +1,4 @@
 incident_id,inventory_id,incident_type,service_type,severity,status,open_datetime,close_datetime,action
-4298,12306.0,OS / Firmware,Incident,Critical,Open,2023-12-30 05:08,2024-01-11 11:46,changed
-4306,993.0,Software,Request,Critical,In Progress,2024-01-11 02:30,,added
-4304,,,,,,,,deleted
-4303,,,,,,,,deleted
+4306,993.0,Software,Request,Critical,In Progress,2024-01-11 02:30,,changed
+4137,,,,,,,,deleted
+4300,,,,,,,,deleted
