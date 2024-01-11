@@ -1,9 +1,5 @@
 incident_id,inventory_id,incident_type,service_type,severity,status,open_datetime,close_datetime,action
-4302,9594,Network Adapter Failure,Incident,Minor,Open,2023-12-27 09:55:00,2024-01-03 02:00:00,added
-4303,17974,General Incident,Request,Cosmetic,In Progress,2024-01-03 09:00:00,2024-01-03 12:00:00,added
-4298,12306,General Incident,Incident,Major,Open,2023-12-30 12:08:00,2023-12-30 13:00:00,added
-4299,12306,General Incident,Incident,Major,Open,2023-12-30 18:20:00,2023-12-30 19:00:00,added
-4301,19244,Maintenance System,Request,Cosmetic,In Progress,2024-01-02 21:49:00,,added
-4304,12305,General Incident,Incident,Major,Open,2024-01-03 09:44:00,2024-01-03 10:20:00,added
-4305,19211,Software,Incident,Major,Open,2024-01-08 00:00:00,,added
-4300,993,Software,Incident,Major,Open,2024-01-02 13:00:00,,added
+4298,12306.0,OS / Firmware,Incident,Critical,Open,2023-12-30 05:08,2024-01-11 11:46,changed
+4306,993.0,Software,Request,Critical,In Progress,2024-01-11 02:30,,added
+4304,,,,,,,,deleted
+4303,,,,,,,,deleted
