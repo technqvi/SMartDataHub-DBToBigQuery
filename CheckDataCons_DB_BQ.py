@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[77]:
 
 
 import psycopg2
@@ -18,12 +18,22 @@ from datetime import datetime,timezone
 
 from dotenv import dotenv_values
 
+import os
+import sys 
 
-# In[14]:
+
+# In[ ]:
 
 
-view_name='pmr_pm_plan'
-bq_table_name=view_name.replace('pmr_','')
+
+
+
+# In[78]:
+
+
+is_py=True
+view_name='pmr_pm_item'
+
 start_query="2019-01-01"
 
 tz="utc"
@@ -32,10 +42,25 @@ dt_imported=datetime.now() # utc
 str_date_imported=dt_imported.strftime('%d%m%Y_%H%M')
 print(str_date_imported)
 
-print(f"{view_name} vs {bq_table_name}")
 
 
-# In[15]:
+
+# In[79]:
+
+
+if is_py:
+    press_Y=''
+    ok=False
+
+    if len(sys.argv) > 1:
+        view_name=sys.argv[1]
+    else:
+        print("Enter the following input: ")
+        view_name = input("View Table Name : ")
+print(f"View name to load to BQ :{view_name} ")
+
+
+# In[80]:
 
 
 def get_key_id_by_view_name(view_name):
@@ -60,12 +85,15 @@ print(key_id)
 
 # # Config DB and BQ
 
-# In[16]:
+# In[81]:
 
 
 env_path='.env'
 config = dotenv_values(dotenv_path=env_path)
 print(env_path)
+
+bq_table_name=view_name.replace('pmr_','')
+print(f"{view_name} vs {bq_table_name}")
 
 
 projectId='smart-data-ml'
@@ -80,7 +108,7 @@ print(dw_table_id)
 
 # # Postgres &BigQuery
 
-# In[17]:
+# In[82]:
 
 
 def get_postgres_conn():
@@ -117,7 +145,7 @@ def load_data_bq(sql:str):
 
 # # Get data from View on Postgres DB
 
-# In[18]:
+# In[83]:
 
 
 def Get_ID_DB():
@@ -133,7 +161,7 @@ dfDB.info()
 
 # # Get data from Main table on BigQuery
 
-# In[19]:
+# In[84]:
 
 
 def Get_ID_BQ():
@@ -150,7 +178,7 @@ dfBQ.info()
 
 # # Comparision
 
-# In[20]:
+# In[85]:
 
 
 def get_different_values(list1, list2):
@@ -175,7 +203,7 @@ def get_different_values(list1, list2):
     
 
 
-# In[21]:
+# In[86]:
 
 
 def find_diff_id(dfPostgres,dfBigQuery):
@@ -198,12 +226,14 @@ def find_diff_id(dfPostgres,dfBigQuery):
 
     if len(dbList)!=len(bqList):
         print(f"Not been sychronized to {dw_table_id} yet : list values in DB that are not in BQ")
-        diffDB=get_different_values(dbList,bqList)
+        # diffDB=get_different_values(dbList,bqList)
+        diffDB=  list(set(dbList)-set(bqList))
         print(diffDB)
         print("=================================================================================================")
 
         print(f"Already deleted on {config['DATABASES_NAME']}: list values in BQ that are not in DB")
-        diffBQ=get_different_values(bqList,dbList)
+        # diffBQ=get_different_values(bqList,dbList)
+        diffBQ=list(set(bqList)-set(dbList))
         print(diffBQ)
         return   diffDB,diffBQ
 
@@ -218,16 +248,16 @@ dbIDs,BQIds=find_diff_id(dfDB,dfBQ)
 
 # # Get data from SMARTDB that have been synchoize to BigQuery
 
-# In[22]:
+# In[87]:
 
 
 def get_comming_data(x_dbIDs,id):
-    if len(dbIDs)>0:
+    if len(x_dbIDs)>0:
         x_dbIDs=[str(id) for id in x_dbIDs ]
-        IDs="({})".format(",".join(x_dbIDs))
-        # print(IDs)
+        x_dbIDs="({})".format(",".join(x_dbIDs))
+        print(x_dbIDs)
         sqlList=f"""
-        select * from {view_name} where {id} in {IDs}
+        select * from {view_name} where {id} in {x_dbIDs}
         order by updated_at desc
         """
         print(sqlList)
@@ -243,7 +273,8 @@ def get_comming_data(x_dbIDs,id):
         return False
         
         
-result=get_comming_data(dbIDs,key_id)        
+result=get_comming_data(dbIDs,key_id)   
+print(result)
 
 
 # In[ ]:
