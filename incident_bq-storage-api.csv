@@ -1,4 +1,0 @@
-incident_id,inventory_id,incident_type,service_type,severity,status,open_datetime,close_datetime,action
-4306,993.0,Software,Request,Critical,In Progress,2024-01-11 02:30,,changed
-4137,,,,,,,,deleted
-4300,,,,,,,,deleted
