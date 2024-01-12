@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[13]:
 
 
 import psycopg2
@@ -19,7 +19,7 @@ from datetime import datetime,timezone
 from dotenv import dotenv_values
 
 
-# In[ ]:
+# In[14]:
 
 
 view_name='pmr_pm_plan'
@@ -35,7 +35,7 @@ print(str_date_imported)
 print(f"{view_name} vs {bq_table_name}")
 
 
-# In[ ]:
+# In[15]:
 
 
 def get_key_id_by_view_name(view_name):
@@ -60,10 +60,10 @@ print(key_id)
 
 # # Config DB and BQ
 
-# In[ ]:
+# In[16]:
 
 
-env_path='../.env'
+env_path='.env'
 config = dotenv_values(dotenv_path=env_path)
 print(env_path)
 
@@ -80,7 +80,7 @@ print(dw_table_id)
 
 # # Postgres &BigQuery
 
-# In[ ]:
+# In[17]:
 
 
 def get_postgres_conn():
@@ -117,7 +117,7 @@ def load_data_bq(sql:str):
 
 # # Get data from View on Postgres DB
 
-# In[ ]:
+# In[18]:
 
 
 def Get_ID_DB():
@@ -133,7 +133,7 @@ dfDB.info()
 
 # # Get data from Main table on BigQuery
 
-# In[ ]:
+# In[19]:
 
 
 def Get_ID_BQ():
@@ -150,7 +150,7 @@ dfBQ.info()
 
 # # Comparision
 
-# In[ ]:
+# In[20]:
 
 
 def get_different_values(list1, list2):
@@ -175,7 +175,7 @@ def get_different_values(list1, list2):
     
 
 
-# In[ ]:
+# In[21]:
 
 
 def find_diff_id(dfPostgres,dfBigQuery):
@@ -218,7 +218,7 @@ dbIDs,BQIds=find_diff_id(dfDB,dfBQ)
 
 # # Get data from SMARTDB that have been synchoize to BigQuery
 
-# In[ ]:
+# In[22]:
 
 
 def get_comming_data(x_dbIDs,id):
