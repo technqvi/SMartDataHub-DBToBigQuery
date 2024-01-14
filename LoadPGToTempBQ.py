@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[61]:
+# In[68]:
 
 
 import psycopg2
@@ -18,21 +18,32 @@ from dateutil import tz
 import os
 import sys 
 
+import pandas as pd
+import numpy as np
+from datetime import datetime 
+from google.cloud import bigquery
+from google.oauth2 import service_account
+from google.cloud.exceptions import NotFound
+from google.api_core.exceptions import BadRequest
+import os
+import sys 
+import shutil
+
+import CheckDataCons_DB_BQ as check_data  
+
+import sqlite3
+
 from configupdater import ConfigUpdater
 # pip install ConfigUpdater
 
 from dotenv import dotenv_values
 
-from google.cloud import bigquery
-from google.cloud.exceptions import NotFound
-from google.api_core.exceptions import BadRequest
-from google.oauth2 import service_account
 
 import bq_storage_api.incident_data_pb2 as pb2_incident
 
 
 
-# In[23]:
+# In[69]:
 
 
 check_consistency=True
@@ -41,13 +52,13 @@ is_py=True
 
 # pmr_ for merg and xyz_ for bq-storage-api
 way="merge" # 1="merge"  or "bq-storage-api"
-view_name = ""
+view_name = "pmr_project"
 
 # way="merge" 
-# view_name = ""
+# view_name = "pmr_pm_plan"
 
 
-# In[24]:
+# In[70]:
 
 
 isFirstLoad=False
@@ -67,18 +78,19 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[25]:
+# In[71]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
 dt_imported=datetime.strptime(dt_imported.strftime("%Y-%m-%d %H:%M:%S"),"%Y-%m-%d %H:%M:%S")
 print(f"UTC: {dt_imported} For This Import")
 
+str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # # Set view data and log table and protocolbuffers
 
-# In[26]:
+# In[72]:
 
 
 log = "models_logging_change"
@@ -99,16 +111,13 @@ def get_process_configuration_data(view_name):
         tableContentID = 37
         key_name = "pm_item_id"
 
-
     elif view_name == "pmr_project":
         tableContentID = 7
         key_name = "project_id"
 
-
     elif view_name == "pmr_inventory":
         tableContentID = 14
         key_name = "inventory_id"
-
         
     elif view_name == "xyz_incident":
         tableContentID = 18
@@ -123,13 +132,19 @@ def get_process_configuration_data(view_name):
 
                              
                                
-content_id , view_name_id,sp_name,data_pb2=get_process_configuration_data(view_name)
+content_id , view_name_id,sp_name,x_data_pb2=get_process_configuration_data(view_name)
 print(content_id," - ",view_name_id)
+
+
+# In[ ]:
+
+
+
 
 
 # # Check configuration parameter validation:
 
-# In[27]:
+# In[73]:
 
 
 #  # 1="merge"  or "bq-storage-api"
@@ -150,7 +165,7 @@ elif result_data_validation and  way=="bq-storage-api":
 
 # # Set data and cofig path
 
-# In[28]:
+# In[74]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -162,11 +177,13 @@ updater.read(os.path.join(cfg_path,f"{view_name}.cfg"))
 
 config = dotenv_values(dotenv_path=env_path)
 
+data_base_file="etl_web_admin/bq_cdc_etl_transaction.db"
+
 print(env_path)
 print(cfg_path)
 
 
-# In[29]:
+# In[75]:
 
 
 # Test exsitng project dataset and table anme
@@ -201,7 +218,7 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 
 # Read Configuration File and Initialize BQ Object
 
-# In[30]:
+# In[76]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
@@ -212,9 +229,9 @@ print(f"{data_name} - UTC:{last_imported}  Of Last Import")
 # print(f"Local Asia/Bangkok:{last_imported}")
 
 
-# # Postgres &BigQuery
+# # Postgres &BigQuery & SQLite
 
-# In[31]:
+# In[77]:
 
 
 def get_postgres_conn():
@@ -243,15 +260,29 @@ def list_data(sql,params,connection):
  return df 
 
 
-#Addtional Try Error    
+
+
+# In[78]:
+
+
+sqlite3.register_adapter(np.int64, lambda val: int(val))
+sqlite3.register_adapter(np.int32, lambda val: int(val))
+
+
+def list_data_sqlite(sql):
+    conn = sqlite3.connect(os.path.abspath(data_base_file))
+    print(sql)
+    df_item=pd.read_sql_query(sql, conn)
+    return df_item
+
 def addETLTrans(recordList):
     try:
         sqliteConnection = sqlite3.connect(os.path.abspath(data_base_file))
         cursor = sqliteConnection.cursor()
         sqlite_insert_query = """
         INSERT INTO etl_transaction
-        (etl_datetime, etl_data_source,etl_type,no_rows,is_complete)  
-        VALUES (?,?,?,?,?);
+        (trans_datetime, view_source_id,type,no_rows,is_consistent,is_complete)  
+        VALUES (?,?,?,?,?,?);
          """
         cursor.executemany(sqlite_insert_query, recordList)
         print("Done ETL Trasaction")
@@ -263,21 +294,11 @@ def addETLTrans(recordList):
     finally:
         if sqliteConnection:
             sqliteConnection.close()
-            
+
+    
 
 
-# if len(listError)>0:
-#  is_loaded_completely=0
-# else:
-#  is_loaded_completely=1
-
-
-# dfETFTran=pd.DataFrame.from_records([{'etl_datetime':dtStr_imported,'data_source_id':source_name,'is_load_all':is_load_all,'completely':is_loaded_completely}])
-# recordsToInsert=list(dfETFTran.to_records(index=False))
-# insertETLTrans(recordsToInsert)
-
-
-# In[32]:
+# In[79]:
 
 
 def get_bq_table():
@@ -306,9 +327,51 @@ def insertDataFrameToBQ(df_trasns):
         print(e) 
 
 
+# # Get View Source
+
+# In[80]:
+
+
+def get_view_source(name):
+    sql=f"select * from view_source where name='{name}' limit 1"
+    dfView=list_data_sqlite(sql)
+    if dfView.empty==False:
+       view_source_id=dfView.iloc[0,0]
+    else:
+        error=f"Not found {view_name} view"
+        raise Exception(error)
+    return view_source_id
+admin_view_id= get_view_source(view_name)
+print(admin_view_id)
+
+
+# # Check Data Consistency
+
+# In[111]:
+
+
+def do_check_consistency():
+    check_result=True
+    if check_consistency:
+         print("Wait in a while for biqguery to update")
+         time.sleep(time_wait_for_bq)
+         print("Check data consistency betwwen database and bigquery")
+         result=check_data.check_data_consistency_db_bq(view_name)
+         if result:
+            print("if result=True , view csv file in check_db_bq  data_consistence_check")  
+            print("send email to admin to investigate")
+            check_result=False
+         else:
+            print(f"Data has been consistent between {config['DATABASES_NAME']} and {main_table_id}")
+    else:
+        print("Disable checking data consistency feature.")
+            
+    return int(result)
+
+
 # # Check whether it is the first loading?
 
-# In[33]:
+# In[82]:
 
 
 def checkFirstLoad():
@@ -323,7 +386,7 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[34]:
+# In[83]:
 
 
 isFirstLoad=checkFirstLoad()
@@ -335,7 +398,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[35]:
+# In[84]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -355,7 +418,7 @@ def list_model_log(x_last_imported,x_content_id):
     return lf
 
 
-# In[36]:
+# In[85]:
 
 
 def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
@@ -373,7 +436,7 @@ def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
     
 
 
-# In[37]:
+# In[86]:
 
 
 def select_actual_action(lf):
@@ -412,14 +475,22 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[38]:
+# In[87]:
 
 
 if isFirstLoad==False:
     listModelLogObjectIDs=[]
     dfModelLog=list_model_log(last_imported,content_id)
     if dfModelLog.empty==True:
+            
+        dfTran=pd.DataFrame(data={
+        "trans_datetime":[str_dt_imported],"view_source_id":[view_source_id],
+        "type":[way],"no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
+        } )
+        addETLTrans(dfTran.to_records(index=False) )
+        
         print("No row to be imported.")
+        
         exit()
     else:
        print("Get row imported from model log to set action") 
@@ -432,7 +503,7 @@ if isFirstLoad==False:
 
 # # Load view and transform
 
-# In[39]:
+# In[88]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -496,7 +567,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[40]:
+# In[89]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -535,7 +606,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[41]:
+# In[90]:
 
 
 if isFirstLoad==False:
@@ -552,7 +623,7 @@ print(df)
 
 # # Last Step :Check duplicate ID & reset index
 
-# In[42]:
+# In[91]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -576,7 +647,7 @@ print(df)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[43]:
+# In[92]:
 
 
 if way=='merge':
@@ -600,13 +671,13 @@ else:
 
 # # BQ-Storage-API Data Transformation
 
-# In[44]:
+# In[93]:
 
 
 # df
 
 
-# In[45]:
+# In[94]:
 
 
 # from google.protobuf.timestamp_pb2 import Timestamp
@@ -623,7 +694,7 @@ else:
 
 
 
-# In[46]:
+# In[95]:
 
 
 # print("change action type")
@@ -641,14 +712,14 @@ else:
 
 # # Split data into Upsert and Delete
 
-# In[47]:
+# In[96]:
 
 
 # dfUpsert=df.query("_CHANGE_TYPE=='UPSERT'")
 # dfUpsert
 
 
-# In[48]:
+# In[97]:
 
 
 # dfDelete=df.query("_CHANGE_TYPE=='DELETE'")
@@ -666,7 +737,7 @@ else:
 
 # ### null dattime is replaced with 0(GMT:1-1-1970 12:00:00 AM)
 
-# In[49]:
+# In[98]:
 
 
 # if dfUpsert.empty==False:
@@ -691,7 +762,7 @@ else:
 #         dfUpsert[d]=dfUpsert[d].astype('Int64')
 
 
-# In[50]:
+# In[99]:
 
 
 # if dfDelete.empty==False:
@@ -701,7 +772,7 @@ else:
 
 # # Write Json File
 
-# In[51]:
+# In[100]:
 
 
 # df['inventory_id']
@@ -717,7 +788,7 @@ else:
 # dfUpsert
 
 
-# In[52]:
+# In[101]:
 
 
 # if  dfDelete.empty==False:
@@ -730,7 +801,7 @@ else:
 # dfDelete
 
 
-# In[53]:
+# In[102]:
 
 
 # delete json file if successful
@@ -738,35 +809,20 @@ else:
 
 # 
 
-# # Check Data Consistency
-
-# In[58]:
-
-
-if check_consistency:
- import CheckDataCons_DB_BQ as check_data   
- print("Wait in a while for biqguery to update")
- time.sleep(time_wait_for_bq)
- print("Check data consistency betwwen database and bigquery")
- result=check_data.check_data_consistency_db_bq(view_name)
- if result:
-    print("if result=True , view csv file in check_db_bq  data_consistence_check")  
-    print("send email to admin to get deeper")
- 
-
+# 
 
 # 
 # # Update New Recenet Update to file
 # 
 
-# In[59]:
+# In[103]:
 
 
 updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 updater.update_file() 
 
 
-# In[60]:
+# In[104]:
 
 
 print(datetime.now(timezone.utc) )
@@ -774,10 +830,16 @@ print(datetime.now(timezone.utc) )
 
 # # Add ETL transaction
 
-# In[57]:
+# In[106]:
 
 
-# create dataframe and addETLTrans n-row as dataframe    
+print("addETLTrans n-row as dataframe")   
+
+dfTran=pd.DataFrame(data={
+"trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
+"type":[way],"no_rows":[len(df)],"is_consistent":[do_check_consistency()],"is_complete":[1]
+} )
+addETLTrans(dfTran.to_records(index=False) )
 
 
 # In[ ]:

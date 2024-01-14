@@ -1,0 +1,19 @@
+bq_cdc_etl_transaction
+DROP TABLE   etl_transaction;
+CREATE TABLE "etl_transaction" (
+	"id"	INTEGER,
+	"trans_datetime"	TEXT NOT NULL,
+	"view_source_id"	INTEGER NOT NULL,
+	"type"	TEXT NOT NULL,
+	"no_rows"	INTEGER NOT NULL,
+	"is_consistent"	INTEGER NOT NULL,
+	"is_complete"	INTEGER NOT NULL,
+	PRIMARY KEY("id" AUTOINCREMENT)
+);
+
+
+CREATE TABLE "view_source" (
+	"id"	INTEGER,
+	"name"	INTEGER NOT NULL UNIQUE,
+	PRIMARY KEY("id")
+);
