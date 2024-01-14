@@ -366,7 +366,7 @@ def do_check_consistency():
     else:
         print("Disable checking data consistency feature.")
             
-    return int(result)
+    return int(check_result)
 
 
 # # Check whether it is the first loading?
