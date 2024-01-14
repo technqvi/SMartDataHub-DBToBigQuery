@@ -484,7 +484,7 @@ if isFirstLoad==False:
     if dfModelLog.empty==True:
             
         dfTran=pd.DataFrame(data={
-        "trans_datetime":[str_dt_imported],"view_source_id":[view_source_id],
+        "trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
         "type":[way],"no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
         } )
         addETLTrans(dfTran.to_records(index=False) )
