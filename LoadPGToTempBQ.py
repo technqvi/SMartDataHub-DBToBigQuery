@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[151]:
+# # Imported Library
+
+# In[61]:
 
 
 import psycopg2
@@ -10,6 +12,7 @@ import psycopg2.extras as extras
 import pandas as pd
 import json
 from datetime import datetime,timezone
+import time
 from dateutil import tz
 
 import os
@@ -25,21 +28,31 @@ from google.cloud.exceptions import NotFound
 from google.api_core.exceptions import BadRequest
 from google.oauth2 import service_account
 
-# [metadata]
-# pmr_pm_plan = 2019-01-01 00:00:00
-# pmr_pm_item = 2019-01-01 00:00:00
-# pmr_project = 2019-01-01 00:00:00
-# pmr_inventory  = 2019-01-01 00:00:00
+import bq_storage_api.incident_data_pb2 as pb2_incident
 
 
-# # Imported Library
 
-# In[152]:
+# In[23]:
 
 
+check_consistency=True
+time_wait_for_bq=60
 is_py=True
+
+# pmr_ for merg and xyz_ for bq-storage-api
+way="merge" # 1="merge"  or "bq-storage-api"
 view_name = ""
+
+# way="merge" 
+# view_name = ""
+
+
+# In[24]:
+
+
 isFirstLoad=False
+                             
+
 if is_py:
     press_Y=''
     ok=False
@@ -54,7 +67,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[153]:
+# In[25]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -63,51 +76,81 @@ print(f"UTC: {dt_imported} For This Import")
 
 
 
-# # Set view data and log table
+# # Set view data and log table and protocolbuffers
 
-# In[154]:
+# In[26]:
 
 
 log = "models_logging_change"
-def get_contentID_keyName(view_name):
+data_name=view_name.replace("pmr_","").replace("xyz_","")
+data_pb2=None
+sp=f"merge_{data_name}"
 
+def get_process_configuration_data(view_name):
+    
+    x_data_pb2=None
     if view_name == "pmr_pm_plan":
         tableContentID = 36
         key_name = "pm_id"
-        sp="merge_pm_plan"
         changed_field_mapping=['planned_date','ended_pm_date',
                                'project_id','remark','team_lead_id']
 
     elif view_name == "pmr_pm_item":
         tableContentID = 37
         key_name = "pm_item_id"
-        sp="merge_pm_item"
+
 
     elif view_name == "pmr_project":
         tableContentID = 7
         key_name = "project_id"
-        sp="merge_project"
+
 
     elif view_name == "pmr_inventory":
         tableContentID = 14
         key_name = "inventory_id"
-        sp="merge_inventory"
-        hanged_field_mapping=[
-        ]
+
+        
+    elif view_name == "xyz_incident":
+        tableContentID = 18
+        key_name = "incident_id"   
+        x_data_pb2=pb2_incident.IncidentData()
 
     else:
         raise Exception("No specified content type id")
         
-    return tableContentID, key_name,sp
+    return tableContentID, key_name,sp,x_data_pb2
 
 
-content_id , view_name_id,sp_name=get_contentID_keyName(view_name)
-print(content_id," - ",view_name_id," - ",sp_name)
+                             
+                               
+content_id , view_name_id,sp_name,data_pb2=get_process_configuration_data(view_name)
+print(content_id," - ",view_name_id)
+
+
+# # Check configuration parameter validation:
+
+# In[27]:
+
+
+#  # 1="merge"  or "bq-storage-api"
+def check_config_parameter_validation(way,sp,data_pb2):
+  if  (way=="merge") and sp is None:
+     raise Exception(f"StoreProcedure is not allowed to None in {way} Way.")
+  elif  (way=="bq-storage-api") and data_pb2 is None:
+     raise Exception(f"ProtoBuf Data is not allowed to None in {way} Way.")   
+  return True
+    
+result_data_validation=check_config_parameter_validation(way,sp,data_pb2)
+if result_data_validation and  way=="merge":
+ print(f"{way} - {sp}")
+elif result_data_validation and  way=="bq-storage-api":
+ print(f"{way}")
+ print(data_pb2.DESCRIPTOR)
 
 
 # # Set data and cofig path
 
-# In[155]:
+# In[28]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -123,7 +166,7 @@ print(env_path)
 print(cfg_path)
 
 
-# In[156]:
+# In[29]:
 
 
 # Test exsitng project dataset and table anme
@@ -140,12 +183,12 @@ main_dataset_id='SMartDataAnalytics'  # ='SMartDataAnalytics'  'PMReport_Main'
 
 credentials = service_account.Credentials.from_service_account_file(credential_file)
 
-table_name=view_name.replace("pmr_","temp_") #can change in ("name") to temp table
+table_name=f"temp_{data_name}" #can change in ("name") to temp table
 table_id = f"{projectId}.{dataset_id}.{table_name}"
 print(table_id)
 
 
-main_table_name=view_name.replace("pmr_","")
+main_table_name=data_name
 main_table_id = f"{projectId}.{main_dataset_id}.{main_table_name}"
 print(main_table_id)
 
@@ -158,11 +201,11 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 
 # Read Configuration File and Initialize BQ Object
 
-# In[157]:
+# In[30]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
-print(f"UTC:{last_imported}  Of Last Import")
+print(f"{data_name} - UTC:{last_imported}  Of Last Import")
 
 # local_zone = tz.tzlocal()
 # last_imported = last_imported.astimezone(local_zone)
@@ -171,7 +214,7 @@ print(f"UTC:{last_imported}  Of Last Import")
 
 # # Postgres &BigQuery
 
-# In[158]:
+# In[31]:
 
 
 def get_postgres_conn():
@@ -200,7 +243,41 @@ def list_data(sql,params,connection):
  return df 
 
 
-# In[159]:
+#Addtional Try Error    
+def addETLTrans(recordList):
+    try:
+        sqliteConnection = sqlite3.connect(os.path.abspath(data_base_file))
+        cursor = sqliteConnection.cursor()
+        sqlite_insert_query = """
+        INSERT INTO etl_transaction
+        (etl_datetime, etl_data_source,etl_type,no_rows,is_complete)  
+        VALUES (?,?,?,?,?);
+         """
+        cursor.executemany(sqlite_insert_query, recordList)
+        print("Done ETL Trasaction")
+        sqliteConnection.commit()
+        cursor.close()
+
+    except Exception as e:
+        print("Failed to insert etl_transaction table", str(e))
+    finally:
+        if sqliteConnection:
+            sqliteConnection.close()
+            
+
+
+# if len(listError)>0:
+#  is_loaded_completely=0
+# else:
+#  is_loaded_completely=1
+
+
+# dfETFTran=pd.DataFrame.from_records([{'etl_datetime':dtStr_imported,'data_source_id':source_name,'is_load_all':is_load_all,'completely':is_loaded_completely}])
+# recordsToInsert=list(dfETFTran.to_records(index=False))
+# insertETLTrans(recordsToInsert)
+
+
+# In[32]:
 
 
 def get_bq_table():
@@ -231,7 +308,7 @@ def insertDataFrameToBQ(df_trasns):
 
 # # Check whether it is the first loading?
 
-# In[160]:
+# In[33]:
 
 
 def checkFirstLoad():
@@ -246,19 +323,19 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[161]:
+# In[34]:
 
 
 isFirstLoad=checkFirstLoad()
-print(f"IsFirstLoad={isFirstLoad}")
+print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 
 
 # # For The next Load
-# * get data from model log based on condition last_imported and table
+# * Get data from model log based on condition last_imported and table
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[162]:
+# In[35]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -278,7 +355,7 @@ def list_model_log(x_last_imported,x_content_id):
     return lf
 
 
-# In[163]:
+# In[36]:
 
 
 def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
@@ -296,7 +373,7 @@ def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
     
 
 
-# In[164]:
+# In[37]:
 
 
 def select_actual_action(lf):
@@ -335,7 +412,7 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[165]:
+# In[38]:
 
 
 if isFirstLoad==False:
@@ -355,7 +432,7 @@ if isFirstLoad==False:
 
 # # Load view and transform
 
-# In[166]:
+# In[39]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -393,10 +470,12 @@ def retrive_one_row_from_view_to_gen_df_schema(x_view):
 if isFirstLoad:
  df=retrive_first_data_from_view(view_name,last_imported)
  if df.empty==True:
+    # create dataframe and addETLTrans 0 row    
     print("No row to be imported.")
     exit()
  else:
-    print(df.info())
+    print(df)
+
 else:
  df=retrive_next_data_from_view(view_name,view_name_id,listModelLogObjectIDs)  
  if df.empty==True:
@@ -406,7 +485,7 @@ else:
     print(df)
 
     
-    
+print(df.info())    
     
 
 
@@ -417,7 +496,7 @@ else:
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[167]:
+# In[40]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -456,7 +535,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[168]:
+# In[41]:
 
 
 if isFirstLoad==False:
@@ -473,7 +552,7 @@ print(df)
 
 # # Last Step :Check duplicate ID & reset index
 
-# In[169]:
+# In[42]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -489,48 +568,53 @@ print(df.info())
 print(df)
 
 
-# In[170]:
+# In[ ]:
 
 
-df
 
 
-# # Insert data to BQ data frame
 
-# In[171]:
+# # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-
-if get_bq_table():
-    try:
-        insertDataFrameToBQ(df)
-    except Exception as ex:
-        raise ex
+# In[43]:
 
 
-# # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
+if way=='merge':
+    print("1#Ingest data into Bigquery")
+    if get_bq_table():
+        try:
+            insertDataFrameToBQ(df)
+        except Exception as ex:
+            raise ex
+            
+    print("2#Run StoreProcedure To Merge Temp&Main and Truncate Transaction.")
+    # https://cloud.google.com/bigquery/docs/transactions
+    sp_id_to_invoke=f""" CALL `{projectId}.{main_dataset_id}.{sp_name}`() """
+    print(sp_id_to_invoke)    
+    sp_job = client.query(sp_id_to_invoke)
 
-# In[172]:
-
-
-print("# Run StoreProcedure To Merge Temp&Main and Truncate Transaction.")
-# https://cloud.google.com/bigquery/docs/transactions
-sp_id_to_invoke=f""" CALL `{projectId}.{main_dataset_id}.{sp_name}`() """
-print(sp_id_to_invoke)
-
-sp_job = client.query(sp_id_to_invoke)
-
-
-# In[173]:
-
-
-updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
-updater.update_file() 
-
-
-# In[174]:
+else:
+    bq_storage_api_path="bq_storage_api"
+    df.to_csv(f"{data_name}_{way}.csv",index=False)
 
 
-print(datetime.now(timezone.utc) )
+# # BQ-Storage-API Data Transformation
+
+# In[44]:
+
+
+# df
+
+
+# In[45]:
+
+
+# from google.protobuf.timestamp_pb2 import Timestamp
+# print("add timestamp import")
+# dtimestamp = Timestamp()
+# dtimestamp.FromDatetime(dt_imported)
+# update_at_micro_timestampe =dtimestamp.ToMicroseconds()
+# df['update_at']=update_at_micro_timestampe 
 
 
 # In[ ]:
@@ -539,7 +623,168 @@ print(datetime.now(timezone.utc) )
 
 
 
+# In[46]:
+
+
+# print("change action type")
+
+# def change_action_merge_to_bq_storage_api(x):
+#     if x=="added" or x=="changed":
+#         return  "UPSERT"
+#     else:
+#         return "DELETE"
+
+    
+# df["_CHANGE_TYPE"]=df['action'].apply(change_action_merge_to_bq_storage_api)
+# df=df.drop(columns=['action'])
+
+
+# # Split data into Upsert and Delete
+
+# In[47]:
+
+
+# dfUpsert=df.query("_CHANGE_TYPE=='UPSERT'")
+# dfUpsert
+
+
+# In[48]:
+
+
+# dfDelete=df.query("_CHANGE_TYPE=='DELETE'")
+# dfDelete
+
+
+# ## if you convert any time of any tz to timestampe for converting to Microseconds , it wll turn into UTC 
+# * to_char((abc.incident_datetime AT TIME ZONE 'Asia/Bangkok'::text),
+#            'YYYY-MM-DD HH24:MI'::text)   AS open_datetime
+# * to_char((abc.incident_datetime AT TIME ZONE 'UTC'::text),
+#                'YYYY-MM-DD HH24:MI'::text)   AS open_datetime
+# * https://www.epochconverter.com/
 # 
+# ## DateTime is UTC
+
+# ### null dattime is replaced with 0(GMT:1-1-1970 12:00:00 AM)
+
+# In[49]:
+
+
+# if dfUpsert.empty==False:
+#     print("convert strng to datetime and microseconds")
+#     from google.protobuf.timestamp_pb2 import Timestamp
+#     def convert_string_to_datetime_timestamp_microseconds (dt_str):
+#         if dt_str is not None:   
+#             dt=datetime.strptime(dt_str,"%Y-%m-%d %H:%M")
+#             # return dt
+#             x_timestamp = Timestamp()
+#             x_timestamp.FromDatetime(dt)
+#             micro_x =x_timestamp.ToMicroseconds()
+#             return micro_x
+#         else:
+#             None
+#     #        
+#     datetimeCols=["open_datetime","close_datetime"]
+#     for d in datetimeCols:
+#         # check whick column contain null value if so, convert float64 to int 32
+#         dfUpsert[d]=dfUpsert[d].apply(convert_string_to_datetime_timestamp_microseconds)
+#         dfUpsert[d] = dfUpsert[d].fillna(0)
+#         dfUpsert[d]=dfUpsert[d].astype('Int64')
+
+
+# In[50]:
+
+
+# if dfDelete.empty==False:
+#     dfDelete=dfDelete[[view_name_id,"_CHANGE_TYPE"]]
+    
+
+
+# # Write Json File
+
+# In[51]:
+
+
+# df['inventory_id']
+
+# if  dfUpsert.empty==False:
+#     json_file="incident_upsert.json"
+#     json_file_path=os.path.join(bq_storage_api_path,json_file)
+
+#     json_incident_data = json.loads(dfUpsert.to_json(orient = 'records'))
+#     with open(json_file_path, "w") as outfile:
+#         json.dump(json_incident_data, outfile)
+# print(dfUpsert.info())
+# dfUpsert
+
+
+# In[52]:
+
+
+# if  dfDelete.empty==False:
+#     json_file="incident_delete.json"
+#     json_file_path=os.path.join(bq_storage_api_path,json_file)
+#     json_incident_data = json.loads(dfDelete.to_json(orient = 'records'))
+#     with open(json_file_path, "w") as outfile:
+#         json.dump(json_incident_data, outfile)
+# print(dfDelete.info())
+# dfDelete
+
+
+# In[53]:
+
+
+# delete json file if successful
+
+
+# 
+
+# # Check Data Consistency
+
+# In[58]:
+
+
+if check_consistency:
+ import CheckDataCons_DB_BQ as check_data   
+ print("Wait in a while for biqguery to update")
+ time.sleep(time_wait_for_bq)
+ print("Check data consistency betwwen database and bigquery")
+ result=check_data.check_data_consistency_db_bq(view_name)
+ if result:
+    print("if result=True , view csv file in check_db_bq  data_consistence_check")  
+    print("send email to admin to get deeper")
+ 
+
+
+# 
+# # Update New Recenet Update to file
+# 
+
+# In[59]:
+
+
+updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
+updater.update_file() 
+
+
+# In[60]:
+
+
+print(datetime.now(timezone.utc) )
+
+
+# # Add ETL transaction
+
+# In[57]:
+
+
+# create dataframe and addETLTrans n-row as dataframe    
+
+
+# In[ ]:
+
+
+
+
 
 # In[ ]:
 

@@ -1,0 +1,39 @@
+pattern
+https://cloud.google.com/blog/products/data-analytics/join-optimizations-with-bigquery-primary-and-foreign-keys
+https://medium.com/google-cloud/bigquery-constraints-for-join-optimization-strategy-2c67972ac2a5
+https://cloud.google.com/bigquery/docs/information-schema-table-constraints
+
+
+ALTER table inventory 
+ADD primary key(inv_date_sk, inv_item_sk, inv_warehouse_sk) NOT ENFORCED,
+ADD FOREIGN KEY(inv_date_sk) references date_dim(d_date_sk) NOT ENFORCED,
+ADD FOREIGN KEY(inv_item_sk) references item(i_item_sk) NOT ENFORCED,
+ADD FOREIGN KEY(inv_warehouse_sk) references warehouse(w_warehouse_sk) NOT ENFORCED;
+
+
+---------------------please do it table per table--------------------------------
+
+--1.project
+ALTER table SMartDataAnalytics.project   
+ADD primary key(project_id) NOT ENFORCED;
+
+
+--2.pm_plan
+ALTER table SMartDataAnalytics.pm_plan   
+ADD primary key(pm_id) NOT ENFORCED,
+ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
+
+
+--3.inventory
+ALTER table SMartDataAnalytics.inventory  
+ADD primary key(inventory_id) NOT ENFORCED,
+ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
+
+--4.pm_item
+ALTER table SMartDataAnalytics.pm_item
+ADD primary key(pm_item_id) NOT ENFORCED,
+ADD FOREIGN KEY(pm_id) references SMartDataAnalytics.pm_plan(pm_id) NOT ENFORCED,
+ADD FOREIGN KEY(inventory_id) references SMartDataAnalytics.inventory(inventory_id) NOT ENFORCED;
+
+
+
