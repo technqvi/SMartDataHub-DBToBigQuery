@@ -4,7 +4,7 @@
 Stop-Service -Name W3SVC
 
 # Optional: Add a delay if needed
-Start-Sleep -Seconds 300
+Start-Sleep -Seconds 600
 
 Write-Host "IIS has been stopped."
 

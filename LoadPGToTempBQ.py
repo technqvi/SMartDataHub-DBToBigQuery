@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[38]:
+# In[1]:
 
 
 import psycopg2
@@ -39,32 +39,18 @@ from configupdater import ConfigUpdater
 from dotenv import dotenv_values
 
 
-import bq_storage_api.incident_data_pb2 as pb2_incident
+# # Init value
 
+# In[2]:
 
-
-# In[ ]:
-
-
-
-
-
-# In[44]:
-
-
+is_py=True
 check_consistency=True
 time_wait_for_bq=30
-is_py=True
-
-# pmr_ for merg and xyz_ for bq-storage-api
-way="merge" # 1="merge"  or "bq-storage-api"
-view_name = "pmr_project"
-
-# way="merge" 
-# view_name = "pmr_pm_plan"
+view_name = ""
 
 
-# In[45]:
+
+# In[3]:
 
 
 isFirstLoad=False
@@ -84,7 +70,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[46]:
+# In[4]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -96,7 +82,7 @@ str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 # # Read Configuration File 
 
-# In[47]:
+# In[5]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -114,61 +100,85 @@ print(env_path)
 print(cfg_path)
 
 
-# # Email & Log
-
-# # Set view data and log table and protocolbuffers
-
-# In[72]:
+# In[6]:
 
 
 log = "models_logging_change"
 data_name=view_name.replace("pmr_","").replace("xyz_","")
-data_pb2=None
-sp=f"merge_{data_name}"
+sp_name=f"merge_{data_name}"
 
-def get_process_configuration_data(view_name):
+
+# # SQLite
+
+# In[7]:
+
+
+sqlite3.register_adapter(np.int64, lambda val: int(val))
+sqlite3.register_adapter(np.int32, lambda val: int(val))
+
+
+def list_data_sqlite(sql):
+    conn = sqlite3.connect(os.path.abspath(data_base_file))
+    print(sql)
+    df_item=pd.read_sql_query(sql, conn)
+    return df_item
+
+def addETLTrans(recordList):
+    try:
+        sqliteConnection = sqlite3.connect(os.path.abspath(data_base_file))
+        cursor = sqliteConnection.cursor()
+        sqlite_insert_query = """
+        INSERT INTO etl_transaction
+        (trans_datetime, view_source_id,no_rows,is_consistent,is_complete)  
+        VALUES (?,?,?,?,?);
+         """
+        cursor.executemany(sqlite_insert_query, recordList)
+        print("Done ETL Trasaction")
+        sqliteConnection.commit()
+        cursor.close()
+
+    except Exception as e:
+        print("Failed to insert etl_transaction table", str(e))
+    finally:
+        if sqliteConnection:
+            sqliteConnection.close()
+
     
-    x_data_pb2=None
-    if view_name == "pmr_pm_plan":
-        tableContentID = 36
-        key_name = "pm_id"
-        changed_field_mapping=['planned_date','ended_pm_date',
-                               'project_id','remark','team_lead_id']
 
-    elif view_name == "pmr_pm_item":
-        tableContentID = 37
-        key_name = "pm_item_id"
 
-    elif view_name == "pmr_project":
-        tableContentID = 7
-        key_name = "project_id"
+# # Get View Source  to set configuration data
 
-    elif view_name == "pmr_inventory":
-        tableContentID = 14
-        key_name = "inventory_id"
-        
-    elif view_name == "xyz_incident":
-        tableContentID = 18
-        key_name = "incident_id"   
-        x_data_pb2=pb2_incident.IncidentData()
+# In[8]:
 
+
+def get_view_source(name):
+    sql=f"select * from view_source where name='{name}' limit 1"
+    dfView=list_data_sqlite(sql)
+    if dfView.empty==False:
+       view_source=dfView.iloc[0,:]
     else:
-        raise Exception("No specified content type id")
-        
-    return tableContentID, key_name,sp,x_data_pb2
+        error=f"Not found {view_name} view"
+        raise Exception(error)
+    return view_source
+view_source= get_view_source(view_name)
+print(view_source)
 
 
-                             
-                               
-content_id , view_name_id,sp_name,x_data_pb2=get_process_configuration_data(view_name)
-print(content_id," - ",view_name_id)
+# In[9]:
 
 
-# 
+admin_view_id=view_source['id']
+content_id=view_source['app_conten_type_id']
+view_name_id=view_source['app_key_name']
+changed_field_mapping=view_source['app_changed_field_mapping'].strip().split(",")
+way=view_source['load_type'] # 1="merge"  or "bq-storage-api"
+print(f"LoadyType:{way} # ContentyTypeID:{content_id} # KeyName:{view_name_id} # SP:{sp_name}")
+print(changed_field_mapping)
+
 
 # # BigQuery Configuration
 
-# In[75]:
+# In[10]:
 
 
 # Test exsitng project dataset and table anme
@@ -203,28 +213,9 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 
 # # Check configuration parameter validation:
 
-# In[73]:
-
-
-#  # 1="merge"  or "bq-storage-api"
-def check_config_parameter_validation(way,sp,data_pb2):
-  if  (way=="merge") and sp is None:
-     raise Exception(f"StoreProcedure is not allowed to None in {way} Way.")
-  elif  (way=="bq-storage-api") and data_pb2 is None:
-     raise Exception(f"ProtoBuf Data is not allowed to None in {way} Way.")   
-  return True
-    
-result_data_validation=check_config_parameter_validation(way,sp,data_pb2)
-if result_data_validation and  way=="merge":
- print(f"{way} - {sp}")
-elif result_data_validation and  way=="bq-storage-api":
- print(f"{way}")
- print(data_pb2.DESCRIPTOR)
-
-
 # # Get Last Import to retrive data after that
 
-# In[76]:
+# In[11]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
@@ -235,9 +226,9 @@ print(f"{data_name} - UTC:{last_imported}  Of Last Import")
 # print(f"Local Asia/Bangkok:{last_imported}")
 
 
-# # Postgres &BigQuery & SQLite
+# # Postgres &BigQuery
 
-# In[77]:
+# In[12]:
 
 
 def get_postgres_conn():
@@ -268,43 +259,7 @@ def list_data(sql,params,connection):
 
 
 
-# In[78]:
-
-
-sqlite3.register_adapter(np.int64, lambda val: int(val))
-sqlite3.register_adapter(np.int32, lambda val: int(val))
-
-
-def list_data_sqlite(sql):
-    conn = sqlite3.connect(os.path.abspath(data_base_file))
-    print(sql)
-    df_item=pd.read_sql_query(sql, conn)
-    return df_item
-
-def addETLTrans(recordList):
-    try:
-        sqliteConnection = sqlite3.connect(os.path.abspath(data_base_file))
-        cursor = sqliteConnection.cursor()
-        sqlite_insert_query = """
-        INSERT INTO etl_transaction
-        (trans_datetime, view_source_id,type,no_rows,is_consistent,is_complete)  
-        VALUES (?,?,?,?,?,?);
-         """
-        cursor.executemany(sqlite_insert_query, recordList)
-        print("Done ETL Trasaction")
-        sqliteConnection.commit()
-        cursor.close()
-
-    except Exception as e:
-        print("Failed to insert etl_transaction table", str(e))
-    finally:
-        if sqliteConnection:
-            sqliteConnection.close()
-
-    
-
-
-# In[79]:
+# In[13]:
 
 
 def get_bq_table():
@@ -333,27 +288,9 @@ def insertDataFrameToBQ(df_trasns):
         print(e) 
 
 
-# # Get View Source to record transaction
-
-# In[80]:
-
-
-def get_view_source(name):
-    sql=f"select * from view_source where name='{name}' limit 1"
-    dfView=list_data_sqlite(sql)
-    if dfView.empty==False:
-       view_source_id=dfView.iloc[0,0]
-    else:
-        error=f"Not found {view_name} view"
-        raise Exception(error)
-    return view_source_id
-admin_view_id= get_view_source(view_name)
-print(admin_view_id)
-
-
 # # Check Data Consistency
 
-# In[111]:
+# In[14]:
 
 
 def do_check_consistency():
@@ -377,7 +314,7 @@ def do_check_consistency():
 
 # # Check whether it is the first loading?
 
-# In[82]:
+# In[15]:
 
 
 def checkFirstLoad():
@@ -392,7 +329,7 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[83]:
+# In[16]:
 
 
 isFirstLoad=checkFirstLoad()
@@ -404,7 +341,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[84]:
+# In[17]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -424,7 +361,7 @@ def list_model_log(x_last_imported,x_content_id):
     return lf
 
 
-# In[85]:
+# In[18]:
 
 
 def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
@@ -442,7 +379,7 @@ def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
     
 
 
-# In[86]:
+# In[20]:
 
 
 def select_actual_action(lf):
@@ -481,7 +418,7 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[87]:
+# In[21]:
 
 
 if isFirstLoad==False:
@@ -491,7 +428,7 @@ if isFirstLoad==False:
             
         dfTran=pd.DataFrame(data={
         "trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
-        "type":[way],"no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
+        "no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
         } )
         addETLTrans(dfTran.to_records(index=False) )
         
@@ -509,7 +446,7 @@ if isFirstLoad==False:
 
 # # Load view and transform
 
-# In[88]:
+# In[22]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -573,7 +510,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[89]:
+# In[23]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -612,7 +549,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[90]:
+# In[24]:
 
 
 if isFirstLoad==False:
@@ -629,7 +566,7 @@ print(df)
 
 # # Last Step :Check duplicate ID & reset index
 
-# In[91]:
+# In[25]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -653,7 +590,7 @@ print(df)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[92]:
+# In[26]:
 
 
 if way=='merge':
@@ -677,13 +614,29 @@ else:
 
 # # BQ-Storage-API Data Transformation
 
-# In[93]:
+# In[27]:
+
+
+# import bq_storage_api.incident_data_pb2 as pb2_incident
+# data_pb2=None
+# def get_data_pb2(view_name):
+    
+#     x_data_pb2=None
+#     if view_name == "xyz_incident": 
+#         x_data_pb2=pb2_incident.IncidentData()
+#     else:
+#         raise Exception("No specified view name to get data pb2")
+        
+#     return x_data_pb2
+
+
+# In[28]:
 
 
 # df
 
 
-# In[94]:
+# In[29]:
 
 
 # from google.protobuf.timestamp_pb2 import Timestamp
@@ -700,7 +653,7 @@ else:
 
 
 
-# In[95]:
+# In[30]:
 
 
 # print("change action type")
@@ -718,14 +671,14 @@ else:
 
 # # Split data into Upsert and Delete
 
-# In[96]:
+# In[31]:
 
 
 # dfUpsert=df.query("_CHANGE_TYPE=='UPSERT'")
 # dfUpsert
 
 
-# In[97]:
+# In[32]:
 
 
 # dfDelete=df.query("_CHANGE_TYPE=='DELETE'")
@@ -743,7 +696,7 @@ else:
 
 # ### null dattime is replaced with 0(GMT:1-1-1970 12:00:00 AM)
 
-# In[98]:
+# In[33]:
 
 
 # if dfUpsert.empty==False:
@@ -768,7 +721,7 @@ else:
 #         dfUpsert[d]=dfUpsert[d].astype('Int64')
 
 
-# In[99]:
+# In[34]:
 
 
 # if dfDelete.empty==False:
@@ -778,7 +731,7 @@ else:
 
 # # Write Json File
 
-# In[100]:
+# In[35]:
 
 
 # df['inventory_id']
@@ -794,7 +747,7 @@ else:
 # dfUpsert
 
 
-# In[101]:
+# In[36]:
 
 
 # if  dfDelete.empty==False:
@@ -807,7 +760,7 @@ else:
 # dfDelete
 
 
-# In[102]:
+# In[37]:
 
 
 # delete json file if successful
@@ -821,14 +774,14 @@ else:
 # # Update New Recenet Update to file
 # 
 
-# In[103]:
+# In[38]:
 
 
 updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 updater.update_file() 
 
 
-# In[104]:
+# In[39]:
 
 
 print(datetime.now(timezone.utc) )
@@ -836,14 +789,14 @@ print(datetime.now(timezone.utc) )
 
 # # Add ETL transaction
 
-# In[106]:
+# In[40]:
 
 
-print("addETLTrans n-row as dataframe")   
+print("Add ETLTrans n-row as dataframe")   
 
 dfTran=pd.DataFrame(data={
 "trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
-"type":[way],"no_rows":[len(df)],"is_consistent":[do_check_consistency()],"is_complete":[1]
+ "no_rows":[len(df)],"is_consistent":[do_check_consistency()],"is_complete":[1]
 } )
 addETLTrans(dfTran.to_records(index=False) )
 
