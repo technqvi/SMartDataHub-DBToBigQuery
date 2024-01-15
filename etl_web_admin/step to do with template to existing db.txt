@@ -1,0 +1,18 @@
+python manage.py runserver
+
+python manage.py runserver 9000
+
+# user table without
+py -m django --version
+
+python manage.py makemigrations
+python manage.py migrate
+
+python manage.py createsuperuser  (fist time after migrating to database)
+username :admin
+email: admin@local.com
+
+
+python manage.py collectstatic  
+
+python manage.py shell
