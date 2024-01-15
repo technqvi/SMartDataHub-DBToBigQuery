@@ -1,5 +1,7 @@
 sqlite: bq_cdc_etl_transaction
+open database and reset data as below
 
+initialize database
 DROP TABLE   etl_transaction;
 CREATE TABLE "etl_transaction" (
 	"id"	INTEGER,
@@ -22,6 +24,10 @@ CREATE TABLE "view_source" (
 	PRIMARY KEY("id")
 );
 
+
+---------------------------------
+DELETE FROM sqlite_sequence WHERE name='etl_transaction';
+DELETE FROM sqlite_sequence WHERE name='view_source';
 LOAD_TO_BQ_TYPE = (
     ("merge", "merge"),
     ("bq-storage-api", "bq-storage-api"),
