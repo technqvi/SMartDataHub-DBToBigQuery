@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[68]:
+# In[38]:
 
 
 import psycopg2
@@ -43,11 +43,17 @@ import bq_storage_api.incident_data_pb2 as pb2_incident
 
 
 
-# In[69]:
+# In[ ]:
+
+
+
+
+
+# In[44]:
 
 
 check_consistency=True
-time_wait_for_bq=60
+time_wait_for_bq=30
 is_py=True
 
 # pmr_ for merg and xyz_ for bq-storage-api
@@ -58,7 +64,7 @@ view_name = "pmr_project"
 # view_name = "pmr_pm_plan"
 
 
-# In[70]:
+# In[45]:
 
 
 isFirstLoad=False
@@ -78,7 +84,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[71]:
+# In[46]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -87,6 +93,28 @@ print(f"UTC: {dt_imported} For This Import")
 
 str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
+
+# # Read Configuration File 
+
+# In[47]:
+
+
+# Test config,env file and key to be used ,all of used key  are existing.
+cfg_path="cfg_last_import"
+env_path='.env'
+
+updater = ConfigUpdater()
+updater.read(os.path.join(cfg_path,f"{view_name}.cfg"))
+
+config = dotenv_values(dotenv_path=env_path)
+
+data_base_file="etl_web_admin/bq_cdc_etl_transaction.db"
+
+print(env_path)
+print(cfg_path)
+
+
+# # Email & Log
 
 # # Set view data and log table and protocolbuffers
 
@@ -136,52 +164,9 @@ content_id , view_name_id,sp_name,x_data_pb2=get_process_configuration_data(view
 print(content_id," - ",view_name_id)
 
 
-# In[ ]:
+# 
 
-
-
-
-
-# # Check configuration parameter validation:
-
-# In[73]:
-
-
-#  # 1="merge"  or "bq-storage-api"
-def check_config_parameter_validation(way,sp,data_pb2):
-  if  (way=="merge") and sp is None:
-     raise Exception(f"StoreProcedure is not allowed to None in {way} Way.")
-  elif  (way=="bq-storage-api") and data_pb2 is None:
-     raise Exception(f"ProtoBuf Data is not allowed to None in {way} Way.")   
-  return True
-    
-result_data_validation=check_config_parameter_validation(way,sp,data_pb2)
-if result_data_validation and  way=="merge":
- print(f"{way} - {sp}")
-elif result_data_validation and  way=="bq-storage-api":
- print(f"{way}")
- print(data_pb2.DESCRIPTOR)
-
-
-# # Set data and cofig path
-
-# In[74]:
-
-
-# Test config,env file and key to be used ,all of used key  are existing.
-cfg_path="cfg_last_import"
-env_path='.env'
-
-updater = ConfigUpdater()
-updater.read(os.path.join(cfg_path,f"{view_name}.cfg"))
-
-config = dotenv_values(dotenv_path=env_path)
-
-data_base_file="etl_web_admin/bq_cdc_etl_transaction.db"
-
-print(env_path)
-print(cfg_path)
-
+# # BigQuery Configuration
 
 # In[75]:
 
@@ -216,7 +201,28 @@ to_bq_mode="WRITE_EMPTY"
 client = bigquery.Client(credentials= credentials,project=projectId)
 
 
-# Read Configuration File and Initialize BQ Object
+# # Check configuration parameter validation:
+
+# In[73]:
+
+
+#  # 1="merge"  or "bq-storage-api"
+def check_config_parameter_validation(way,sp,data_pb2):
+  if  (way=="merge") and sp is None:
+     raise Exception(f"StoreProcedure is not allowed to None in {way} Way.")
+  elif  (way=="bq-storage-api") and data_pb2 is None:
+     raise Exception(f"ProtoBuf Data is not allowed to None in {way} Way.")   
+  return True
+    
+result_data_validation=check_config_parameter_validation(way,sp,data_pb2)
+if result_data_validation and  way=="merge":
+ print(f"{way} - {sp}")
+elif result_data_validation and  way=="bq-storage-api":
+ print(f"{way}")
+ print(data_pb2.DESCRIPTOR)
+
+
+# # Get Last Import to retrive data after that
 
 # In[76]:
 
@@ -327,7 +333,7 @@ def insertDataFrameToBQ(df_trasns):
         print(e) 
 
 
-# # Get View Source
+# # Get View Source to record transaction
 
 # In[80]:
 
@@ -359,7 +365,7 @@ def do_check_consistency():
          result=check_data.check_data_consistency_db_bq(view_name)
          if result:
             print("if result=True , view csv file in check_db_bq  data_consistence_check")  
-            print("send email to admin to investigate")
+            print("send email to admin to investigate somthing wrong.")
             check_result=False
          else:
             print(f"Data has been consistent between {config['DATABASES_NAME']} and {main_table_id}")
