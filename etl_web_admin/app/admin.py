@@ -6,8 +6,8 @@ from django.contrib.admin import SimpleListFilter
 @admin.register(ViewSource)
 class ViewSourceAdmin(admin.ModelAdmin):
     actions =None
-    list_display = ['id','name']
-    search_fields = ['name']
+    list_display = ['id','name','load_type','app_conten_type_id','app_key_name','app_changed_field_mapping']
+    search_fields = ['name','load_type']
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -32,7 +32,7 @@ class ViewSourceFilter(SimpleListFilter):
 @admin.register(ETLTransaction)
 class ETLTransaction(admin.ModelAdmin):
     actions =None
-    list_display = ['trans_datetime','view_source','type','no_rows','is_consistent','is_complete']
+    list_display = ['trans_datetime','view_source','no_rows','is_consistent','is_complete']
     search_fields =['trans_datetime']
     list_filter = (ViewSourceFilter,)
 

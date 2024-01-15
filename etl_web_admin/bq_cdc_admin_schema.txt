@@ -1,19 +1,28 @@
-bq_cdc_etl_transaction
+sqlite: bq_cdc_etl_transaction
+
 DROP TABLE   etl_transaction;
 CREATE TABLE "etl_transaction" (
 	"id"	INTEGER,
 	"trans_datetime"	TEXT NOT NULL,
 	"view_source_id"	INTEGER NOT NULL,
-	"type"	TEXT NOT NULL,
 	"no_rows"	INTEGER NOT NULL,
 	"is_consistent"	INTEGER NOT NULL,
 	"is_complete"	INTEGER NOT NULL,
 	PRIMARY KEY("id" AUTOINCREMENT)
 );
 
-
+DROP TABLE   view_source;
 CREATE TABLE "view_source" (
 	"id"	INTEGER,
 	"name"	INTEGER NOT NULL UNIQUE,
+        "load_type"  TEXT NOT NULL,
+        "app_conten_type_id"   INTEGER NOT NULL,
+        "app_key_name" TEXT NOT NULL,
+        "app_changed_field_mapping" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
+
+LOAD_TO_BQ_TYPE = (
+    ("merge", "merge"),
+    ("bq-storage-api", "bq-storage-api"),
+)
