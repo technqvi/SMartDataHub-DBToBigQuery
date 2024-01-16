@@ -90,6 +90,15 @@ DATABASES = {
     }
 }
 
+EMAIL_BACKEND = 'django_o365mail.EmailBackend'
+O365_MAIL_CLIENT_ID =env('O365_MAIL_CLIENT_ID')
+O365_MAIL_CLIENT_SECRET =env('O365_MAIL_CLIENT_SECRET')
+O365_MAIL_TENANT_ID =env('O365_MAIL_TENANT_ID')
+O365_ACTUALLY_SEND_IN_DEBUG=bool(env('O365_ACTUALLY_SEND_IN_DEBUG'))
+O365_MAIL_MAILBOX_KWARGS = {'resource': env('O365_MAIL_MAILBOX_KWARGS')}
+
+EMAIL_ADMIN_FOR_MONTHLY_NOTIFICATION=['pongthorn.sa@yipintsoi.com']
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
