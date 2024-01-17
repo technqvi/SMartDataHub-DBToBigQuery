@@ -19,13 +19,14 @@ DROP TABLE   view_source;
 CREATE TABLE "view_source" (
 	"id"	INTEGER,
 	"name"	INTEGER NOT NULL UNIQUE,
-        "load_type"  TEXT NOT NULL,
-        "app_conten_type_id"   INTEGER NOT NULL,
-        "app_key_name" TEXT NOT NULL,
-        "app_changed_field_mapping" TEXT NOT NULL,
+	"load_type"	TEXT NOT NULL,
+	"app_conten_type_id"	INTEGER NOT NULL,
+	"app_key_name"	TEXT NOT NULL,
+	"app_changed_field_mapping"	TEXT NOT NULL,
+	"app_pk_name_list"	TEXT,
+	"app_datetime_field_list"	TEXT,
 	PRIMARY KEY("id")
 );
-
 
 ---------------------------------
 DELETE FROM sqlite_sequence WHERE name='etl_transaction';

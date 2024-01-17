@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[353]:
+# In[74]:
 
 
 import psycopg2
@@ -41,16 +41,16 @@ from dotenv import dotenv_values
 
 # # Init value
 
-# In[354]:
+# In[75]:
 
 
-is_py=False
-check_consistency=True
+is_py=True
+check_consistency=False
 time_wait_for_bq=30
-view_name = "pmr_project"
+view_name = "pmr_inventory"
 
 
-# In[355]:
+# In[76]:
 
 
 isFirstLoad=False
@@ -70,7 +70,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[356]:
+# In[77]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -82,7 +82,7 @@ str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 # # Read Configuration File 
 
-# In[357]:
+# In[78]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -100,7 +100,7 @@ print(env_path)
 print(cfg_path)
 
 
-# In[358]:
+# In[79]:
 
 
 log = "models_logging_change"
@@ -110,7 +110,7 @@ sp_name=f"merge_{data_name}"
 
 # # SQLite
 
-# In[359]:
+# In[80]:
 
 
 sqlite3.register_adapter(np.int64, lambda val: int(val))
@@ -148,7 +148,7 @@ def addETLTrans(recordList):
 
 # # Get View Source  to set configuration data
 
-# In[360]:
+# In[81]:
 
 
 def get_view_source(name):
@@ -164,7 +164,7 @@ view_source= get_view_source(view_name)
 print(view_source)
 
 
-# In[361]:
+# In[82]:
 
 
 admin_view_id=view_source['id']
@@ -182,7 +182,7 @@ print(changed_field_mapping)
 
 # # BigQuery Configuration
 
-# In[362]:
+# In[83]:
 
 
 # Test exsitng project dataset and table anme
@@ -219,7 +219,7 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 
 # # Get Last Import to retrive data after that
 
-# In[363]:
+# In[84]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
@@ -232,7 +232,7 @@ print(f"{data_name} - UTC:{last_imported}  Of Last Import")
 
 # # Postgres &BigQuery
 
-# In[364]:
+# In[85]:
 
 
 def get_postgres_conn():
@@ -263,7 +263,7 @@ def list_data(sql,params,connection):
 
 
 
-# In[365]:
+# In[86]:
 
 
 def get_bq_table():
@@ -294,7 +294,7 @@ def insertDataFrameToBQ(df_trasns):
 
 # # Check Data Consistency
 
-# In[366]:
+# In[87]:
 
 
 def do_check_consistency():
@@ -318,7 +318,7 @@ def do_check_consistency():
 
 # # Check whether it is the first loading?
 
-# In[367]:
+# In[88]:
 
 
 def checkFirstLoad():
@@ -333,7 +333,7 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[368]:
+# In[89]:
 
 
 isFirstLoad=checkFirstLoad()
@@ -345,7 +345,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[369]:
+# In[90]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -367,7 +367,7 @@ def list_model_log(x_last_imported,x_content_id):
 
 # # Find Change in Mappping
 
-# In[370]:
+# In[91]:
 
 
 def findChangeInListMapping(changed_data):
@@ -413,7 +413,7 @@ def check_no_changes_to_columns_view_only_changed_action(dfAction,x_view_name,_x
     
 
 
-# In[371]:
+# In[92]:
 
 
 listForRemove=[]
@@ -457,14 +457,14 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[372]:
+# In[93]:
 
 
 if isFirstLoad==False:
     listModelLogObjectIDs=[]
     dfModelLog=list_model_log(last_imported,content_id)
     if dfModelLog.empty==True:
-            
+
         dfTran=pd.DataFrame(data={
         "trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
         "no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
@@ -473,22 +473,17 @@ if isFirstLoad==False:
         print("No row to be imported.")
         exit()
     else:
-       print("Get row imported from model log to set action") 
-       dfModelLog=select_actual_action( dfModelLog)
+        print("Get row imported from model log to set action") 
+        dfModelLog=select_actual_action( dfModelLog)
+        listForRemove=[int(id) for id in listForRemove ]
+        print(f"Remove these Ids from dfModelLog : {listForRemove}")
+        dfModelLog=dfModelLog.query("id not in @listForRemove")
+        listModelLogObjectIDs=dfModelLog['id'].tolist()
 
-
-# In[329]:
-
-
-listForRemove=[int(id) for id in listForRemove ]
-print(f"Remove these Ids from dfModelLog : {listForRemove}")
-dfModelLog=dfModelLog.query("id not in @listForRemove")
-listModelLogObjectIDs=dfModelLog['id'].tolist()
-
-print(dfModelLog.info())
-print(dfModelLog)       
-print(listModelLogObjectIDs) 
-
+        print(dfModelLog.info())
+        print(dfModelLog)       
+        print(listModelLogObjectIDs) 
+ 
 
 
 # In[ ]:
@@ -499,7 +494,7 @@ print(listModelLogObjectIDs)
 
 # # Load view and transform
 
-# In[330]:
+# In[94]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -563,7 +558,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[331]:
+# In[95]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -602,12 +597,11 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[332]:
+# In[96]:
 
 
 if isFirstLoad==False:
  df=add_acutal_action_to_df_at_next(df,dfModelLog,view_name,view_name_id)
-
 print(df)
 
 
@@ -619,7 +613,7 @@ print(df)
 
 # # Last Step :Check duplicate ID & reset index
 
-# In[333]:
+# In[97]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -643,7 +637,7 @@ print(df)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[334]:
+# In[73]:
 
 
 if way=='merge':

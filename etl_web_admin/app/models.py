@@ -15,6 +15,8 @@ class ViewSource(models.Model):
     app_conten_type_id=models.IntegerField(help_text='id from django_content_type table in your django database app.')
     app_key_name = models.CharField(max_length=255,help_text='key name from view in your django database app.')
     app_changed_field_mapping = models.TextField(help_text="all fields related to columns such as filed1,filed2,filed3.")
+    app_fk_name_list = models.TextField(help_text="all fields are pk included in view(Converted type ton Int64)", null=True, blank=True)
+    app_datetime_field_list=models.TextField(help_text="all fields are date/datetime type included in view (Applied in bq-storage-api)",null=True, blank=True)
     class Meta:
         managed = False
         db_table = 'view_source'

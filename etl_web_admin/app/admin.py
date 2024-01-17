@@ -6,7 +6,7 @@ from django.contrib.admin import SimpleListFilter
 @admin.register(ViewSource)
 class ViewSourceAdmin(admin.ModelAdmin):
     actions =None
-    list_display = ['id','name','load_type','app_conten_type_id','app_key_name','app_changed_field_mapping']
+    list_display = ['id','name','load_type','app_conten_type_id','app_key_name','app_changed_field_mapping','app_fk_name_list','app_datetime_field_list']
     search_fields = ['name','load_type']
 
     def has_delete_permission(self, request, obj=None):
