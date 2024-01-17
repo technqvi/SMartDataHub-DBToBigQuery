@@ -44,7 +44,7 @@ from dotenv import dotenv_values
 # In[2]:
 
 is_py=True
-check_consistency=True
+check_consistency=False
 time_wait_for_bq=30
 view_name = ""
 

@@ -88,7 +88,7 @@ def check_data_consistency_db_bq(view_name):
     config = dotenv_values(dotenv_path=env_path)
     print(env_path)
 
-    bq_table_name=view_name.replace('pmr_','')
+    bq_table_name=view_name.replace('pmr_','').replace("xyz_","")
     print(f"{view_name} vs {bq_table_name}")
 
 

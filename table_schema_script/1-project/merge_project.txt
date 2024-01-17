@@ -37,3 +37,10 @@ EXCEPTION WHEN ERROR THEN
  ROLLBACK TRANSACTION;
 
 END;
+
+
+
+
+view_project
+SELECT * FROM smart-data-ml.SMartDataAnalytics.project WHERE is_deleted=False
+and DateTIme(update_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)

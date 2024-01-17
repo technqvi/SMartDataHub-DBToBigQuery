@@ -17,17 +17,19 @@ ADD FOREIGN KEY(inv_warehouse_sk) references warehouse(w_warehouse_sk) NOT ENFOR
 ALTER table SMartDataAnalytics.project   
 ADD primary key(project_id) NOT ENFORCED;
 
+--2.inventory
+ALTER table SMartDataAnalytics.inventory  
+ADD primary key(inventory_id) NOT ENFORCED,
+ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
 
---2.pm_plan
+
+--3.pm_plan
 ALTER table SMartDataAnalytics.pm_plan   
 ADD primary key(pm_id) NOT ENFORCED,
 ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
 
 
---3.inventory
-ALTER table SMartDataAnalytics.inventory  
-ADD primary key(inventory_id) NOT ENFORCED,
-ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
+
 
 --4.pm_item
 ALTER table SMartDataAnalytics.pm_item

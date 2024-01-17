@@ -2,6 +2,12 @@ pm_item
 partition: update_at as month
 cluster: pm_id
 
+--4.pm_item
+ALTER table SMartDataAnalytics.pm_item
+ADD primary key(pm_item_id) NOT ENFORCED,
+ADD FOREIGN KEY(pm_id) references SMartDataAnalytics.pm_plan(pm_id) NOT ENFORCED,
+ADD FOREIGN KEY(inventory_id) references SMartDataAnalytics.inventory(inventory_id) NOT ENFORCED;
+
 [
   {
     "name": "pm_item_id",
@@ -83,3 +89,7 @@ cluster: pm_id
     "fields": []
   }
 ]
+
+view_pm_item
+SELECT * FROM `smart-data-ml.SMartDataAnalytics.pm_item` WHERE is_deleted=False
+and DateTIme(update_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)

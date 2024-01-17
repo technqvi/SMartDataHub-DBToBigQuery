@@ -1,0 +1,31 @@
+from google.cloud import bigquery_storage_v1
+
+# TODO(developer): Set table_id to the ID of the table to write to.
+# table_id = "your-project.your_dataset.your_table_name"
+
+# TODO(developer): Set json_file to the path of the JSON file to write to BigQuery.
+# json_file = "path/to/json/file.json"
+
+# TODO(developer): Set snapshot_millis to the snapshot time in milliseconds.
+# snapshot_millis = 1640995348000
+
+client = bigquery_storage_v1.BigQueryWriteClient()
+
+# Get the stream name.
+parent = client.table_path(project=table_id.split(".")[0], dataset=table_id.split(".")[1], table=table_id.split(".")[2])
+stream = client.create_write_stream(parent=parent)
+stream_name = stream.name
+
+# Convert the JSON file to a protobuf message.
+with open(json_file, "r") as f:
+    json_data = f.read()
+    proto_data = bigquery_storage_v1.proto2_to_json(json_data)
+
+# Write the protobuf message to BigQuery.
+writer = client.append_rows(write_stream=stream_name, proto_rows=proto_data)
+
+# Wait for the write operation to complete.
+response = writer.result()
+
+# Print the number of rows written.
+print(f"Successfully wrote {response.row_count} rows.")

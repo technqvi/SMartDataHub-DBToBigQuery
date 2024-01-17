@@ -13,6 +13,8 @@ CREATE TABLE "etl_transaction" (
 	PRIMARY KEY("id" AUTOINCREMENT)
 );
 
+
+----------------------DONT'T DO IT--------------------
 DROP TABLE   view_source;
 CREATE TABLE "view_source" (
 	"id"	INTEGER,
@@ -28,6 +30,8 @@ CREATE TABLE "view_source" (
 ---------------------------------
 DELETE FROM sqlite_sequence WHERE name='etl_transaction';
 DELETE FROM sqlite_sequence WHERE name='view_source';
+
+
 LOAD_TO_BQ_TYPE = (
     ("merge", "merge"),
     ("bq-storage-api", "bq-storage-api"),
