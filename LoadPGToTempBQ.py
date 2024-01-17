@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[74]:
+# In[1]:
 
 
 import psycopg2
@@ -41,16 +41,16 @@ from dotenv import dotenv_values
 
 # # Init value
 
-# In[75]:
+# In[2]:
 
 
 is_py=True
 check_consistency=False
 time_wait_for_bq=30
-view_name = "pmr_inventory"
+view_name = "pmr_pm_plan"
 
 
-# In[76]:
+# In[3]:
 
 
 isFirstLoad=False
@@ -70,7 +70,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[77]:
+# In[4]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -82,7 +82,7 @@ str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 # # Read Configuration File 
 
-# In[78]:
+# In[5]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -100,7 +100,7 @@ print(env_path)
 print(cfg_path)
 
 
-# In[79]:
+# In[6]:
 
 
 log = "models_logging_change"
@@ -110,7 +110,7 @@ sp_name=f"merge_{data_name}"
 
 # # SQLite
 
-# In[80]:
+# In[7]:
 
 
 sqlite3.register_adapter(np.int64, lambda val: int(val))
@@ -148,7 +148,7 @@ def addETLTrans(recordList):
 
 # # Get View Source  to set configuration data
 
-# In[81]:
+# In[8]:
 
 
 def get_view_source(name):
@@ -164,7 +164,7 @@ view_source= get_view_source(view_name)
 print(view_source)
 
 
-# In[82]:
+# In[10]:
 
 
 admin_view_id=view_source['id']
@@ -176,13 +176,21 @@ changed_field_mapping=view_source['app_changed_field_mapping'].strip().split(","
 changed_field_mapping = [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in changed_field_mapping] 
 
 way=view_source['load_type'] # 1="merge"  or "bq-storage-api"
+
+pk_fk_list=[]
+if view_source['app_fk_name_list'] is not None:
+    pk_fk_list=view_source['app_fk_name_list'].strip().split(",")
+    pk_fk_list= [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in  pk_fk_list] 
+pk_fk_list.append(view_name_id)
+
 print(f"LoadyType:{way} # ContentyTypeID:{content_id} # KeyName:{view_name_id} # SP:{sp_name}")
 print(changed_field_mapping)
+print(pk_fk_list)
 
 
 # # BigQuery Configuration
 
-# In[83]:
+# In[11]:
 
 
 # Test exsitng project dataset and table anme
@@ -219,7 +227,7 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 
 # # Get Last Import to retrive data after that
 
-# In[84]:
+# In[12]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
@@ -232,7 +240,7 @@ print(f"{data_name} - UTC:{last_imported}  Of Last Import")
 
 # # Postgres &BigQuery
 
-# In[85]:
+# In[13]:
 
 
 def get_postgres_conn():
@@ -263,7 +271,7 @@ def list_data(sql,params,connection):
 
 
 
-# In[86]:
+# In[14]:
 
 
 def get_bq_table():
@@ -294,7 +302,7 @@ def insertDataFrameToBQ(df_trasns):
 
 # # Check Data Consistency
 
-# In[87]:
+# In[15]:
 
 
 def do_check_consistency():
@@ -318,7 +326,7 @@ def do_check_consistency():
 
 # # Check whether it is the first loading?
 
-# In[88]:
+# In[16]:
 
 
 def checkFirstLoad():
@@ -333,7 +341,7 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[89]:
+# In[17]:
 
 
 isFirstLoad=checkFirstLoad()
@@ -345,7 +353,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[90]:
+# In[18]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -367,7 +375,7 @@ def list_model_log(x_last_imported,x_content_id):
 
 # # Find Change in Mappping
 
-# In[91]:
+# In[19]:
 
 
 def findChangeInListMapping(changed_data):
@@ -413,7 +421,7 @@ def check_no_changes_to_columns_view_only_changed_action(dfAction,x_view_name,_x
     
 
 
-# In[92]:
+# In[20]:
 
 
 listForRemove=[]
@@ -457,7 +465,7 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[93]:
+# In[21]:
 
 
 if isFirstLoad==False:
@@ -494,7 +502,7 @@ if isFirstLoad==False:
 
 # # Load view and transform
 
-# In[94]:
+# In[22]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -558,7 +566,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[95]:
+# In[23]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -597,7 +605,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[96]:
+# In[24]:
 
 
 if isFirstLoad==False:
@@ -611,9 +619,15 @@ print(df)
 
 
 
-# # Last Step :Check duplicate ID & reset index
+# # Last Step :Check duplicate ID & reset index & convert all pk&fk to int64
 
-# In[97]:
+# In[ ]:
+
+
+
+
+
+# In[27]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -622,6 +636,8 @@ if  hasDplicateIDs:
 else:
  print(f"There is no duplicate {view_name_id} ID")  
 
+if len(pk_fk_list)>0:
+ df[pk_fk_list] = df[pk_fk_list].astype('Int64')
 
 # merged_df['imported_at']=dt_imported
 df=df.reset_index(drop=True  )
@@ -637,7 +653,7 @@ print(df)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[73]:
+# In[28]:
 
 
 if way=='merge':
@@ -665,14 +681,14 @@ else:
 # # Update New Recenet Update to file
 # 
 
-# In[335]:
+# In[29]:
 
 
 updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 updater.update_file() 
 
 
-# In[336]:
+# In[30]:
 
 
 print(datetime.now(timezone.utc) )
@@ -680,7 +696,7 @@ print(datetime.now(timezone.utc) )
 
 # # Add ETL transaction
 
-# In[338]:
+# In[31]:
 
 
 print("Add ETLTrans n-row as dataframe")   
