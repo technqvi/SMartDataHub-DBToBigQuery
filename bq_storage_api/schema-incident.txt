@@ -59,7 +59,6 @@ WHERE
 test 
 date_created>='2024-01-17' and content_type_id=18
 
-change 4372	
-add 4384
-delete   4097
-change 4274 (not in view)
+SELECT
+ incident_id,status, IF(date(close_datetime) ='1970-01-01' , null, close_datetime)
+from `pongthorn.SMartDataAnalytics.incident`  
