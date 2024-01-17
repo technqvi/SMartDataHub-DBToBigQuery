@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[1]:
+# In[353]:
 
 
 import psycopg2
@@ -41,16 +41,16 @@ from dotenv import dotenv_values
 
 # # Init value
 
-# In[2]:
+# In[354]:
 
-is_py=True
-check_consistency=False
+
+is_py=False
+check_consistency=True
 time_wait_for_bq=30
-view_name = ""
+view_name = "pmr_project"
 
 
-
-# In[3]:
+# In[355]:
 
 
 isFirstLoad=False
@@ -70,7 +70,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[4]:
+# In[356]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -82,7 +82,7 @@ str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 # # Read Configuration File 
 
-# In[5]:
+# In[357]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -100,7 +100,7 @@ print(env_path)
 print(cfg_path)
 
 
-# In[6]:
+# In[358]:
 
 
 log = "models_logging_change"
@@ -110,7 +110,7 @@ sp_name=f"merge_{data_name}"
 
 # # SQLite
 
-# In[7]:
+# In[359]:
 
 
 sqlite3.register_adapter(np.int64, lambda val: int(val))
@@ -148,7 +148,7 @@ def addETLTrans(recordList):
 
 # # Get View Source  to set configuration data
 
-# In[8]:
+# In[360]:
 
 
 def get_view_source(name):
@@ -164,13 +164,17 @@ view_source= get_view_source(view_name)
 print(view_source)
 
 
-# In[9]:
+# In[361]:
 
 
 admin_view_id=view_source['id']
 content_id=view_source['app_conten_type_id']
 view_name_id=view_source['app_key_name']
+
+
 changed_field_mapping=view_source['app_changed_field_mapping'].strip().split(",")
+changed_field_mapping = [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in changed_field_mapping] 
+
 way=view_source['load_type'] # 1="merge"  or "bq-storage-api"
 print(f"LoadyType:{way} # ContentyTypeID:{content_id} # KeyName:{view_name_id} # SP:{sp_name}")
 print(changed_field_mapping)
@@ -178,7 +182,7 @@ print(changed_field_mapping)
 
 # # BigQuery Configuration
 
-# In[10]:
+# In[362]:
 
 
 # Test exsitng project dataset and table anme
@@ -190,8 +194,8 @@ credential_file=config['PROJECT_CREDENTIAL_FILE']
 # C:\Windows\pongthorn-5decdc5124f5.json
 
 
-dataset_id='SMartData_Temp'  # 'SMartData_Temp'  'PMReport_Temp'
-main_dataset_id='SMartDataAnalytics'  # ='SMartDataAnalytics'  'PMReport_Main'
+dataset_id=config['TEMP_DATASET'] # 'SMartData_Temp'  'PMReport_Temp'
+main_dataset_id=config['MAIN_DATASET']  # ='SMartDataAnalytics'  'PMReport_Main'
 
 credentials = service_account.Credentials.from_service_account_file(credential_file)
 
@@ -215,7 +219,7 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 
 # # Get Last Import to retrive data after that
 
-# In[11]:
+# In[363]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
@@ -228,7 +232,7 @@ print(f"{data_name} - UTC:{last_imported}  Of Last Import")
 
 # # Postgres &BigQuery
 
-# In[12]:
+# In[364]:
 
 
 def get_postgres_conn():
@@ -259,7 +263,7 @@ def list_data(sql,params,connection):
 
 
 
-# In[13]:
+# In[365]:
 
 
 def get_bq_table():
@@ -290,7 +294,7 @@ def insertDataFrameToBQ(df_trasns):
 
 # # Check Data Consistency
 
-# In[14]:
+# In[366]:
 
 
 def do_check_consistency():
@@ -314,7 +318,7 @@ def do_check_consistency():
 
 # # Check whether it is the first loading?
 
-# In[15]:
+# In[367]:
 
 
 def checkFirstLoad():
@@ -329,7 +333,7 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[16]:
+# In[368]:
 
 
 isFirstLoad=checkFirstLoad()
@@ -341,7 +345,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[17]:
+# In[369]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -361,27 +365,58 @@ def list_model_log(x_last_imported,x_content_id):
     return lf
 
 
-# In[18]:
+# # Find Change in Mappping
+
+# In[370]:
 
 
-def check_any_changes_to_collumns_view(dfAction,x_view_name,_x_key_name):
+def findChangeInListMapping(changed_data):
+    # print(type(changed_data))
+    # print(changed_data)
+    x=False
+    for key in changed_data.keys():
+        # print(key)
+        if key in changed_field_mapping :
+            print(f"{key} in {changed_field_mapping}")
+            x= True
+
+    return x
+    
+
+def check_no_changes_to_columns_view_only_changed_action(dfAction,x_view_name,_x_key_name):
     """
     Check dataframe from log model that contain only changed action to select changed fields on view.
+    Gather id no any changes based on  changed_field_mapping to get rid of it from list to import to BQ
     """
 
     listACtion=dfAction["action"].unique().tolist()
     if len(listACtion)==1 and listACtion[0]=='changed':
-        print("###########################################################")
+        print("#######################Find Some Changes#############################")
         print("Process dataframe containing only all changed action")
-        print(dfAction)
-        print("###########################################################")
+        dfAction['x']=dfAction['changed_data'].apply(findChangeInListMapping)
+        print(dfAction[['object_id','x','changed_data']])
+        
+        any_rows_match = dfAction['x'] ==True
+        match_x=any_rows_match.any()
+        print("Check whether at least one row in a DataFrame matches a specific criteria")
+        print(match_x)
+        # there is at least one change in mapping changed_field_mapping : return false
+        if match_x:
+            return False
+        # there is no any change in mapping changed_field_mapping : return true  
+        else: # return to caller for deleteing from list
+            return True
+        print("#####################################################################")
+    else:
+        return False
+        
     
-    
 
 
-# In[20]:
+# In[371]:
 
 
+listForRemove=[]
 def select_actual_action(lf):
     listIDs=lf["object_id"].unique().tolist()
     listUpdateData=[]
@@ -389,10 +424,14 @@ def select_actual_action(lf):
         lfTemp=lf.query("object_id==@id")
         print(f"--------------------{id}---------------------------------")
         print(lfTemp)
+        print(f"--------------------end---------------------------------")
         
         
         
-        # check_any_changes_to_collumns_view(lfTemp,content_id,view_name_id)
+        x=check_no_changes_to_columns_view_only_changed_action(lfTemp,view_name,view_name_id)
+        if x==True:
+           print(f"RemoveID {id}") 
+           listForRemove.append(id) 
 
 
         first_row = lfTemp.iloc[0]
@@ -418,7 +457,7 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[21]:
+# In[372]:
 
 
 if isFirstLoad==False:
@@ -431,22 +470,36 @@ if isFirstLoad==False:
         "no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
         } )
         addETLTrans(dfTran.to_records(index=False) )
-        
         print("No row to be imported.")
-        
         exit()
     else:
        print("Get row imported from model log to set action") 
        dfModelLog=select_actual_action( dfModelLog)
-       listModelLogObjectIDs=dfModelLog['id'].tolist()
-       print(dfModelLog.info())
-       print(dfModelLog)       
-       print(listModelLogObjectIDs) 
+
+
+# In[329]:
+
+
+listForRemove=[int(id) for id in listForRemove ]
+print(f"Remove these Ids from dfModelLog : {listForRemove}")
+dfModelLog=dfModelLog.query("id not in @listForRemove")
+listModelLogObjectIDs=dfModelLog['id'].tolist()
+
+print(dfModelLog.info())
+print(dfModelLog)       
+print(listModelLogObjectIDs) 
+
+
+
+# In[ ]:
+
+
+
 
 
 # # Load view and transform
 
-# In[22]:
+# In[330]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -510,7 +563,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[23]:
+# In[331]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -549,7 +602,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[24]:
+# In[332]:
 
 
 if isFirstLoad==False:
@@ -566,7 +619,7 @@ print(df)
 
 # # Last Step :Check duplicate ID & reset index
 
-# In[25]:
+# In[333]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -590,7 +643,7 @@ print(df)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[26]:
+# In[334]:
 
 
 if way=='merge':
@@ -608,165 +661,9 @@ if way=='merge':
     sp_job = client.query(sp_id_to_invoke)
 
 else:
-    bq_storage_api_path="bq_storage_api"
-    df.to_csv(f"{data_name}_{way}.csv",index=False)
+    df.to_csv(f"bq_storage_api/{data_name}_{way}.csv",index=False)
+    # invoke ingest_data_bq_storage_api
 
-
-# # BQ-Storage-API Data Transformation
-
-# In[27]:
-
-
-# import bq_storage_api.incident_data_pb2 as pb2_incident
-# data_pb2=None
-# def get_data_pb2(view_name):
-    
-#     x_data_pb2=None
-#     if view_name == "xyz_incident": 
-#         x_data_pb2=pb2_incident.IncidentData()
-#     else:
-#         raise Exception("No specified view name to get data pb2")
-        
-#     return x_data_pb2
-
-
-# In[28]:
-
-
-# df
-
-
-# In[29]:
-
-
-# from google.protobuf.timestamp_pb2 import Timestamp
-# print("add timestamp import")
-# dtimestamp = Timestamp()
-# dtimestamp.FromDatetime(dt_imported)
-# update_at_micro_timestampe =dtimestamp.ToMicroseconds()
-# df['update_at']=update_at_micro_timestampe 
-
-
-# In[ ]:
-
-
-
-
-
-# In[30]:
-
-
-# print("change action type")
-
-# def change_action_merge_to_bq_storage_api(x):
-#     if x=="added" or x=="changed":
-#         return  "UPSERT"
-#     else:
-#         return "DELETE"
-
-    
-# df["_CHANGE_TYPE"]=df['action'].apply(change_action_merge_to_bq_storage_api)
-# df=df.drop(columns=['action'])
-
-
-# # Split data into Upsert and Delete
-
-# In[31]:
-
-
-# dfUpsert=df.query("_CHANGE_TYPE=='UPSERT'")
-# dfUpsert
-
-
-# In[32]:
-
-
-# dfDelete=df.query("_CHANGE_TYPE=='DELETE'")
-# dfDelete
-
-
-# ## if you convert any time of any tz to timestampe for converting to Microseconds , it wll turn into UTC 
-# * to_char((abc.incident_datetime AT TIME ZONE 'Asia/Bangkok'::text),
-#            'YYYY-MM-DD HH24:MI'::text)   AS open_datetime
-# * to_char((abc.incident_datetime AT TIME ZONE 'UTC'::text),
-#                'YYYY-MM-DD HH24:MI'::text)   AS open_datetime
-# * https://www.epochconverter.com/
-# 
-# ## DateTime is UTC
-
-# ### null dattime is replaced with 0(GMT:1-1-1970 12:00:00 AM)
-
-# In[33]:
-
-
-# if dfUpsert.empty==False:
-#     print("convert strng to datetime and microseconds")
-#     from google.protobuf.timestamp_pb2 import Timestamp
-#     def convert_string_to_datetime_timestamp_microseconds (dt_str):
-#         if dt_str is not None:   
-#             dt=datetime.strptime(dt_str,"%Y-%m-%d %H:%M")
-#             # return dt
-#             x_timestamp = Timestamp()
-#             x_timestamp.FromDatetime(dt)
-#             micro_x =x_timestamp.ToMicroseconds()
-#             return micro_x
-#         else:
-#             None
-#     #        
-#     datetimeCols=["open_datetime","close_datetime"]
-#     for d in datetimeCols:
-#         # check whick column contain null value if so, convert float64 to int 32
-#         dfUpsert[d]=dfUpsert[d].apply(convert_string_to_datetime_timestamp_microseconds)
-#         dfUpsert[d] = dfUpsert[d].fillna(0)
-#         dfUpsert[d]=dfUpsert[d].astype('Int64')
-
-
-# In[34]:
-
-
-# if dfDelete.empty==False:
-#     dfDelete=dfDelete[[view_name_id,"_CHANGE_TYPE"]]
-    
-
-
-# # Write Json File
-
-# In[35]:
-
-
-# df['inventory_id']
-
-# if  dfUpsert.empty==False:
-#     json_file="incident_upsert.json"
-#     json_file_path=os.path.join(bq_storage_api_path,json_file)
-
-#     json_incident_data = json.loads(dfUpsert.to_json(orient = 'records'))
-#     with open(json_file_path, "w") as outfile:
-#         json.dump(json_incident_data, outfile)
-# print(dfUpsert.info())
-# dfUpsert
-
-
-# In[36]:
-
-
-# if  dfDelete.empty==False:
-#     json_file="incident_delete.json"
-#     json_file_path=os.path.join(bq_storage_api_path,json_file)
-#     json_incident_data = json.loads(dfDelete.to_json(orient = 'records'))
-#     with open(json_file_path, "w") as outfile:
-#         json.dump(json_incident_data, outfile)
-# print(dfDelete.info())
-# dfDelete
-
-
-# In[37]:
-
-
-# delete json file if successful
-
-
-# 
 
 # 
 
@@ -774,14 +671,14 @@ else:
 # # Update New Recenet Update to file
 # 
 
-# In[38]:
+# In[335]:
 
 
 updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 updater.update_file() 
 
 
-# In[39]:
+# In[336]:
 
 
 print(datetime.now(timezone.utc) )
@@ -789,7 +686,7 @@ print(datetime.now(timezone.utc) )
 
 # # Add ETL transaction
 
-# In[40]:
+# In[338]:
 
 
 print("Add ETLTrans n-row as dataframe")   
