@@ -5,12 +5,10 @@ https://protobuf.dev/getting-started/pythontutorial/
 https://console.cloud.google.com/apis/library/bigquerystorage.googleapis.com?project=pongthorn
 
 -----------------------
-incident
-
-# exluded deleted column lik Merging
+incident script
 
 CREATE OR REPLACE TABLE `pongthorn.SMartDataAnalytics.incident` (
- incident_id INT64 PRIMARY KEY NOT ENFORCED,
+ incident_id INT64,
  inventory_id INT64,
  incident_type STRING,
  service_type STRING,
@@ -20,18 +18,19 @@ CREATE OR REPLACE TABLE `pongthorn.SMartDataAnalytics.incident` (
  close_datetime TIMESTAMP,
  update_at TIMESTAMP
 )
-CLUSTER BY
- incident_id
-OPTIONS(max_staleness = INTERVAL 15 MINUTE);
+PARTITION BY DATE_TRUNC(open_datetime, MONTH)
+CLUSTER BY  open_datetime,status,severity,incident_type
+OPTIONS(max_staleness = INTERVAL 0 MINUTE);
+
+ALTER table SMartDataAnalytics.incident   
+ADD primary key(incident_id) NOT ENFORCED,
+ADD FOREIGN KEY(inventory_id) references SMartDataAnalytics.inventory(inventory_id) NOT ENFORCED;
+-------------------------------------------
 
 ALTER TABLE `pongthorn.SMartDataAnalytics.incident`
 SET OPTIONS (
  max_staleness = INTERVAL 0 MINUTE);
-
-
-----------------------------------------
-
-
+-------------------------------------------------------------------------------------
 
 C:\protoc-25.1-win64\bin
 run compile proto file to get xxxx_pb2.py

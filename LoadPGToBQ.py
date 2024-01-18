@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[1]:
+# In[18]:
 
 
 import psycopg2
@@ -23,8 +23,10 @@ import numpy as np
 from datetime import datetime 
 from google.cloud import bigquery
 from google.oauth2 import service_account
+
 from google.cloud.exceptions import NotFound
 from google.api_core.exceptions import BadRequest
+
 import os
 import sys 
 import shutil
@@ -38,19 +40,22 @@ from configupdater import ConfigUpdater
 
 from dotenv import dotenv_values
 
+import LoadPGToBQ_BQStorageAPI as  bq_cdc_stream_loader
+
 
 # # Init value
 
-# In[2]:
+# In[19]:
 
 
 is_py=True
 check_consistency=False
 time_wait_for_bq=30
-view_name = "pmr_pm_plan"
+view_name = "pmr_project"
+log = "models_logging_change"
 
 
-# In[3]:
+# In[20]:
 
 
 isFirstLoad=False
@@ -70,7 +75,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[4]:
+# In[21]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -82,35 +87,65 @@ str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 # # Read Configuration File 
 
-# In[5]:
+# In[22]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
-cfg_path="cfg_last_import"
-env_path='.env'
+def get_config_file():
 
-updater = ConfigUpdater()
-updater.read(os.path.join(cfg_path,f"{view_name}.cfg"))
+    try:
+        cfg_path="cfg_last_import"
+        env_path='.env'
+        data_base_file="etl_web_admin/bq_cdc_etl_transaction.db"
 
-config = dotenv_values(dotenv_path=env_path)
+        connection = sqlite3.connect(os.path.abspath(data_base_file))
 
-data_base_file="etl_web_admin/bq_cdc_etl_transaction.db"
+        config = dotenv_values(dotenv_path=env_path)
 
-print(env_path)
-print(cfg_path)
+        updater = ConfigUpdater()
+        updater.read(os.path.join(cfg_path,f"{view_name}.cfg"))
+
+    except Exception as e:
+      raise e    
+    finally:
+
+        if connection:
+            connection.close()
+
+    return  config,updater,data_base_file
+
+config,updater,data_base_file=get_config_file()
 
 
-# In[6]:
+# # Get Last Import to retrive data after that
+
+# In[23]:
 
 
-log = "models_logging_change"
+last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
+print(f"UTC:{last_imported}  Of Last Import")
+
+# local_zone = tz.tzlocal()
+# last_imported = last_imported.astimezone(local_zone)
+# print(f"Local Asia/Bangkok:{last_imported}")
+
+
+# # Set Table Namd and StoreProc on BQ
+
+# In[24]:
+
+
+# pmr for merging
+# xyz for bq-storage-api
 data_name=view_name.replace("pmr_","").replace("xyz_","")
 sp_name=f"merge_{data_name}"
+print(data_name)
+print(sp_name)
 
 
 # # SQLite
 
-# In[7]:
+# In[25]:
 
 
 sqlite3.register_adapter(np.int64, lambda val: int(val))
@@ -118,9 +153,15 @@ sqlite3.register_adapter(np.int32, lambda val: int(val))
 
 
 def list_data_sqlite(sql):
-    conn = sqlite3.connect(os.path.abspath(data_base_file))
-    print(sql)
-    df_item=pd.read_sql_query(sql, conn)
+    try:
+        conn = sqlite3.connect(os.path.abspath(data_base_file))
+        print(sql)
+        df_item=pd.read_sql_query(sql, conn)
+    except Exception as e:
+        print("Failed to insert etl_transaction table", str(e))
+    finally:
+        if conn:
+            conn.close()
     return df_item
 
 def addETLTrans(recordList):
@@ -146,101 +187,9 @@ def addETLTrans(recordList):
     
 
 
-# # Get View Source  to set configuration data
-
-# In[8]:
-
-
-def get_view_source(name):
-    sql=f"select * from view_source where name='{name}' limit 1"
-    dfView=list_data_sqlite(sql)
-    if dfView.empty==False:
-       view_source=dfView.iloc[0,:]
-    else:
-        error=f"Not found {view_name} view"
-        raise Exception(error)
-    return view_source
-view_source= get_view_source(view_name)
-print(view_source)
-
-
-# In[10]:
-
-
-admin_view_id=view_source['id']
-content_id=view_source['app_conten_type_id']
-view_name_id=view_source['app_key_name']
-
-
-changed_field_mapping=view_source['app_changed_field_mapping'].strip().split(",")
-changed_field_mapping = [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in changed_field_mapping] 
-
-way=view_source['load_type'] # 1="merge"  or "bq-storage-api"
-
-pk_fk_list=[]
-if view_source['app_fk_name_list'] is not None:
-    pk_fk_list=view_source['app_fk_name_list'].strip().split(",")
-    pk_fk_list= [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in  pk_fk_list] 
-pk_fk_list.append(view_name_id)
-
-print(f"LoadyType:{way} # ContentyTypeID:{content_id} # KeyName:{view_name_id} # SP:{sp_name}")
-print(changed_field_mapping)
-print(pk_fk_list)
-
-
-# # BigQuery Configuration
-
-# In[11]:
-
-
-# Test exsitng project dataset and table anme
-
-projectId=config['PROJECT_ID']  # smart-data-ml  or kku-intern-dataai or ponthorn
-credential_file=config['PROJECT_CREDENTIAL_FILE']
-# C:\Windows\smart-data-ml-91b6f6204773.json
-# C:\Windows\kku-intern-dataai-a5449aee8483.json
-# C:\Windows\pongthorn-5decdc5124f5.json
-
-
-dataset_id=config['TEMP_DATASET'] # 'SMartData_Temp'  'PMReport_Temp'
-main_dataset_id=config['MAIN_DATASET']  # ='SMartDataAnalytics'  'PMReport_Main'
-
-credentials = service_account.Credentials.from_service_account_file(credential_file)
-
-table_name=f"temp_{data_name}" #can change in ("name") to temp table
-table_id = f"{projectId}.{dataset_id}.{table_name}"
-print(table_id)
-
-
-main_table_name=data_name
-main_table_id = f"{projectId}.{main_dataset_id}.{main_table_name}"
-print(main_table_id)
-
-# https://cloud.google.com/bigquery/docs/reference/rest/v2/Job
-to_bq_mode="WRITE_EMPTY"
-
-
-client = bigquery.Client(credentials= credentials,project=projectId)
-
-
-# # Check configuration parameter validation:
-
-# # Get Last Import to retrive data after that
-
-# In[12]:
-
-
-last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
-print(f"{data_name} - UTC:{last_imported}  Of Last Import")
-
-# local_zone = tz.tzlocal()
-# last_imported = last_imported.astimezone(local_zone)
-# print(f"Local Asia/Bangkok:{last_imported}")
-
-
 # # Postgres &BigQuery
 
-# In[13]:
+# In[26]:
 
 
 def get_postgres_conn():
@@ -269,9 +218,154 @@ def list_data(sql,params,connection):
  return df 
 
 
+# # Get View Source  to set configuration data
+
+# In[27]:
 
 
-# In[14]:
+def get_view_source(name):
+    try:
+        sql=f"select * from view_source where name='{name}' limit 1"
+        dfView=list_data_sqlite(sql)
+        if dfView.empty==False:
+           view_source=dfView.iloc[0,:]
+        else:
+            error=f"Not found {view_name} view"
+            raise Exception(error)
+    except Exception as e:
+        print("Failed to insert etl_transaction table", str(e))
+        raise Exception(e)
+        
+    return view_source
+view_source= get_view_source(view_name)
+print(view_source)
+
+
+# In[28]:
+
+
+admin_view_id=view_source['id']
+content_id=view_source['app_conten_type_id']
+view_name_id=view_source['app_key_name']
+
+app_table_name=view_source['main_source_table_name']
+
+changed_field_mapping=view_source['app_changed_field_mapping'].strip().split(",")
+changed_field_mapping = [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in changed_field_mapping] 
+
+way=view_source['load_type'] # 1="merge"  or "bq-storage-api"
+
+pk_fk_list=[]
+if view_source['app_fk_name_list'] is not None and view_source['app_fk_name_list']!='':
+    pk_fk_list=view_source['app_fk_name_list'].strip().split(",")
+    pk_fk_list= [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in  pk_fk_list] 
+pk_fk_list.append(view_name_id)
+
+datetime_list=[]
+if view_source['app_datetime_field_list'] is not None and view_source['app_datetime_field_list'] !='':
+    datetime_list=view_source['app_datetime_field_list'].strip().split(",")
+    datetime_list= [ x.replace(" ", "").replace("\r", "").replace("\n", "") for x  in  datetime_list] 
+
+
+print(f"{app_table_name} #LoadyType:{way} # ContentyTypeID:{content_id} # KeyName:{view_name_id} # SP:{sp_name}")
+print(changed_field_mapping)
+print(pk_fk_list)
+print(datetime_list)
+
+
+# # Filed/Columns Validation
+
+# In[29]:
+
+
+def check_fileds_in_view_source_in_web_admin_existing_in_database(x_name,x_list):
+    
+    sqlCheck=f"SELECT column_name FROM information_schema.columns WHERE table_name = '{x_name}'"
+    listColTable=list_data(sqlCheck,None,get_postgres_conn())
+    
+    listColTable=listColTable["column_name"].tolist()
+    print(listColTable)
+    print("=====================================")
+    print(x_list)
+    x_check = all(elem in listColTable for elem in x_list)
+    
+    return x_check
+
+
+# In[30]:
+
+
+print(f"All PK and FK in ViewSource table on WebAdmin must be in view {view_name}")
+pk_fk_check=check_fileds_in_view_source_in_web_admin_existing_in_database(view_name,pk_fk_list)
+if pk_fk_check:
+    print(pk_fk_check)
+else:
+    raise Exception(f"There are some columns are not in {view_name}")
+
+print(f"All Columns Mapping to check changed data in ViewSource table on WebAdmin must be in table {app_table_name}")
+chanagd_mapping_check=check_fileds_in_view_source_in_web_admin_existing_in_database(app_table_name,changed_field_mapping)
+if  chanagd_mapping_check:
+    print(chanagd_mapping_check)   
+else:
+    raise Exception(f"There are some columns are not in {app_table_name}")
+
+
+
+# In[ ]:
+
+
+
+
+
+# # BigQuery Configuration
+
+# In[31]:
+
+
+projectId=config['PROJECT_ID']  # smart-data-ml  or kku-intern-dataai or ponthorn
+credential_file=config['PROJECT_CREDENTIAL_FILE']
+# C:\Windows\smart-data-ml-91b6f6204773.json
+# C:\Windows\kku-intern-dataai-a5449aee8483.json
+# C:\Windows\pongthorn-5decdc5124f5.json
+
+dataset_id=config['TEMP_DATASET'] # 'SMartData_Temp'  'PMReport_Temp'
+main_dataset_id=config['MAIN_DATASET']  # ='SMartDataAnalytics'  'PMReport_Main'
+
+table_name=f"temp_{data_name}" #can change in ("name") to temp table
+table_id = f"{projectId}.{dataset_id}.{table_name}"
+
+
+
+main_table_name=data_name
+main_table_id = f"{projectId}.{main_dataset_id}.{main_table_name}"
+
+# https://cloud.google.com/bigquery/docs/reference/rest/v2/Job
+to_bq_mode="WRITE_EMPTY"
+
+credentials = service_account.Credentials.from_service_account_file(credential_file)
+client = bigquery.Client(credentials= credentials,project=projectId)
+
+def check_existing_table_return_schema(clien,x_table_id):
+    try:
+        table = client.get_table(x_table_id)  # Make an API request.
+        print("Table {} already exists.".format(table_id))
+
+        schema = table.schema
+        listTableSchema = [(field.name, field.field_type) for field in schema]
+
+        return listTableSchema
+    
+    except NotFound as e:
+        print("Table {} does not exist.".format(table_id))
+        raise e
+
+table_schema=  check_existing_table_return_schema(client,table_id)    
+main_table_schema=  check_existing_table_return_schema(client,main_table_id)   
+print(table_schema)
+print(main_table_schema)
+
+
+# In[32]:
 
 
 def get_bq_table():
@@ -288,21 +382,19 @@ def insertDataFrameToBQ(df_trasns):
     try:
         job_config = bigquery.LoadJobConfig(write_disposition=to_bq_mode,)
         job = client.load_table_from_dataframe(df_trasns, table_id, job_config=job_config)
-        try:
-         job.result()  # Wait for the job to complete.
-        except ClientError as e:
-         print(job.errors)
-
+        
+        job.result()  # Wait for the job to complete.
         print("Total ", len(df_trasns), f"Imported data to {table_id} on bigquery successfully")
 
-    except BadRequest as e:
-        print("Bigquery Error\n")
-        print(e) 
+    except BadRequest as err:
+        # Handle the BadRequest exception
+        print("BadRequest error:", err)
+        print("Error details:", err.errors)  # Access detailed error information
 
 
 # # Check Data Consistency
 
-# In[15]:
+# In[33]:
 
 
 def do_check_consistency():
@@ -324,9 +416,23 @@ def do_check_consistency():
     return int(check_result)
 
 
+# # Add transaction 
+
+# In[34]:
+
+
+def add_tran(x_no_rows,x_is_complete):
+    print("Add transaction.")
+    dfTran=pd.DataFrame(data={
+            "trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
+            "no_rows":[x_no_rows],"is_consistent":[do_check_consistency()],"is_complete":[x_is_complete]
+            } )
+    addETLTrans(dfTran.to_records(index=False) )
+
+
 # # Check whether it is the first loading?
 
-# In[16]:
+# In[35]:
 
 
 def checkFirstLoad():
@@ -341,7 +447,7 @@ def checkFirstLoad():
     return isFirstLoad
 
 
-# In[17]:
+# In[36]:
 
 
 isFirstLoad=checkFirstLoad()
@@ -353,7 +459,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[18]:
+# In[37]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -375,7 +481,7 @@ def list_model_log(x_last_imported,x_content_id):
 
 # # Find Change in Mappping
 
-# In[19]:
+# In[38]:
 
 
 def findChangeInListMapping(changed_data):
@@ -421,7 +527,7 @@ def check_no_changes_to_columns_view_only_changed_action(dfAction,x_view_name,_x
     
 
 
-# In[20]:
+# In[39]:
 
 
 listForRemove=[]
@@ -465,20 +571,25 @@ def select_actual_action(lf):
     return dfUpdateData
 
 
-# In[21]:
+# In[ ]:
 
+
+
+
+
+# In[41]:
+
+
+print("Process finding actual action, if there is no any rows in model logging then exit()")
 
 if isFirstLoad==False:
     listModelLogObjectIDs=[]
     dfModelLog=list_model_log(last_imported,content_id)
+    
     if dfModelLog.empty==True:
 
-        dfTran=pd.DataFrame(data={
-        "trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
-        "no_rows":[0],"is_consistent":[do_check_consistency()],"is_complete":[1]
-        } )
-        addETLTrans(dfTran.to_records(index=False) )
-        print("No row to be imported.")
+        add_tran(0,1)
+        print("No row to be imported prior to processing finding actual final aciton.")
         exit()
     else:
         print("Get row imported from model log to set action") 
@@ -491,35 +602,26 @@ if isFirstLoad==False:
         print(dfModelLog.info())
         print(dfModelLog)       
         print(listModelLogObjectIDs) 
- 
+            
 
 
-# In[ ]:
+# # Load view by object id 
 
-
-
-
-
-# # Load view and transform
-
-# In[22]:
+# In[42]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
-    if len(x_listModelLogObjectIDs)>1:
-     sql_view=f"select *  from {x_view}  where {x_id} in {tuple(x_listModelLogObjectIDs)}"
-    else:
-     sql_view=f"select *  from {x_view}  where {x_id} ={x_listModelLogObjectIDs[0]}"
-    
+    obbjectID_str_list = ', '.join(["'{}'".format(value) for value in x_listModelLogObjectIDs])   
+    sql_view=f"select *  from {x_view}  where {x_id} in ({obbjectID_str_list })"
+
     print(sql_view)
     df=list_data(sql_view,None,get_postgres_conn())
-
+    # in case of all deleted item , it will return empty dataframe
     if df.empty==True:
-     return df
+        return df
     df=df.drop(columns='updated_at')
     return df 
-
-
+    
 def retrive_first_data_from_view(x_view,x_last_imported):
      sql_view=f"select *  from {x_view}  where  updated_at AT time zone 'utc' >= '{x_last_imported}'"
      print(sql_view)
@@ -529,7 +631,9 @@ def retrive_first_data_from_view(x_view,x_last_imported):
      df=df.drop(columns='updated_at')
      df['action']='added'
      return df   
-def retrive_one_row_from_view_to_gen_df_schema(x_view):
+
+# it is used for pn;yall delted items 
+def retrive_one_row_from_view_to_gen_df_schema_for_all_deleted_action(x_view):
     sql_view=f"select *  from {x_view}  limit 1"
     print(sql_view)
     df=list_data(sql_view,None,get_postgres_conn())
@@ -537,26 +641,35 @@ def retrive_one_row_from_view_to_gen_df_schema(x_view):
     return df
 
 
+    
+
+
+# In[45]:
+
+
+print("Before process finding actual action, if there is no any rows after removing id ")
+
 if isFirstLoad:
- df=retrive_first_data_from_view(view_name,last_imported)
- if df.empty==True:
-    # create dataframe and addETLTrans 0 row    
-    print("No row to be imported.")
-    exit()
- else:
-    print(df)
+    df=retrive_first_data_from_view(view_name,last_imported)
+    if df.empty==True:
+    # create dataframe and addETLTrans 0 row 
+        print("No row to be imported.")
+        exit()
 
-else:
- df=retrive_next_data_from_view(view_name,view_name_id,listModelLogObjectIDs)  
- if df.empty==True:
-    print("Due to having deleted items, we will Get schema from {} to create empty dataframe with schema.")
-    df=retrive_one_row_from_view_to_gen_df_schema(view_name)
-    # this id has been included in listModelLogObjectIDs which contain deleted action , so we can use it as schema generation
-    print(df)
+# after process actual aciton, if there is some rows that have some changes excluding in changed data mapping 
+else:  
+    if len(listModelLogObjectIDs)>0 :  
+     df=retrive_next_data_from_view(view_name,view_name_id,listModelLogObjectIDs)  
+     if df.empty==True:
+        print("All deleted items, we will Get schema from {} to create empty dataframe with schema.")
+        df=retrive_one_row_from_view_to_gen_df_schema_for_all_deleted_action(view_name)
+        # this id has been included in listModelLogObjectIDs which contain deleted action , so we can use it as schema generation
+    else:
+        add_tran(0,1)
+        print("No row to be imported after processing finding actual final aciton.")
+        exit()    
 
-    
-print(df.info())    
-    
+print(df.info())
 
 
 # # Data Transaformation
@@ -566,7 +679,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[23]:
+# In[46]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -605,7 +718,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[24]:
+# In[47]:
 
 
 if isFirstLoad==False:
@@ -619,15 +732,15 @@ print(df)
 
 
 
-# # Last Step :Check duplicate ID & reset index & convert all pk&fk to int64
+# # Check duplicate ID & reset index & convert all pk&fk to int64
 
-# In[ ]:
-
-
+# In[48]:
 
 
+print("Last Step :Check duplicate ID & reset index & convert all pk&fk to int64")
 
-# In[27]:
+
+# In[49]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -645,6 +758,84 @@ print(df.info())
 print(df)
 
 
+# # Schema Validation
+# 
+
+# In[50]:
+
+
+print("Column name validation")
+def df_vs_bq(dFColsV,bQColsV):
+    if set(dFColsV) != set(bQColsV):
+     raise Exception(f"temp table: {dFColsV} != {bQColsV}")
+    else:
+     print(f"temp table: {dFColsV}  == {bQColsV}") 
+    return True
+
+print("Verify column name for temp(Merge-Sol)")
+if way=="merge":
+    tempDFColsV=df.columns.tolist()
+    tempBQColsV=[ col[0] for col in table_schema ]  
+    temp_result=df_vs_bq(tempDFColsV,tempBQColsV)
+
+print("Verify column name for main(Both)") 
+mainDFColsV=[ x for x in df.columns.tolist() if  x!="action" ]
+mainBQColsV=[ col[0] for col in main_table_schema ] 
+if way=="merge":
+ mainBQColsV=[ x for x in mainBQColsV if x not in['is_deleted','update_at'] ] 
+else:
+ mainBQColsV=[ x for x in mainBQColsV if x not in['update_at',] ]    
+main_result=df_vs_bq(mainDFColsV,mainBQColsV)
+
+
+# ## Promp: how get table schema both field name and field type on Bigquery using python to store these values in nested list contain tuple?
+# * https://docs.google.com/spreadsheets/d/1WrBvFsJpcm6UQ95pRJxGxk74VlDQHV1z0vgZQLeVotU/edit#gid=104041129
+# * https://github.com/technqvi/MIS-FinData/blob/main/LoadDataFromOracleToBQ_Dev.ipynb
+# 
+# ## Error in code as detail
+# * error if some column in dataframe contain null , it is interpreted to object type   depsite having excact tppy define in bigquery data schema such as actual date,docuemnt dat in pm_item or close_incident_date in incident
+
+# In[51]:
+
+
+# BQ_TO_DF_DATA_TYPE_MAPPING= \
+# {
+#   "STRING":['object','str'],
+#   "INTEGER":['int','int32','int64'] ,
+#   "FLOAT":['float','float64'],
+#   "BOOLEAN":['bool'],
+#   "TIMESTAMP":['datetime64[ns]'],  
+#   "DATETIME":['datetime64[ns]'],   
+#   "DATE":['datetime64[ns]'],
+#   "TIME":['object','str'],
+    
+# }
+# dfTempBQSchema=pd.DataFrame(table_schema, columns=['name','type'])
+
+
+# for col_name, type_name in df[tempDFColsV].dtypes.items():
+#     found=False
+    
+#     df_type=str(type_name).lower()
+#     dfASDF= dfTempBQSchema.query("name==@col_name")
+#     print(col_name,"#Dataframe#" ,df_type ) 
+
+#     if  len(dfASDF)>0:
+#         bq_col_name=dfASDF.iloc[0,0]
+#         bq_col_type=dfASDF.iloc[0,1]
+#         print(bq_col_name,"#BQ#" ,bq_col_type ) 
+#         if bq_col_type in BQ_TO_DF_DATA_TYPE_MAPPING and \
+#             df_type in BQ_TO_DF_DATA_TYPE_MAPPING[bq_col_type]  : 
+#              found=True
+#     if found==False:
+#         raise Exception(col_name,"-#" ,df_type," in dataframe didn't match in BQ" )
+#     else:
+#         print("Found")
+#     print("============================================================")    
+     
+    
+
+
 # In[ ]:
 
 
@@ -653,11 +844,11 @@ print(df)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[28]:
+# In[52]:
 
 
 if way=='merge':
-    print("1#Ingest data into Bigquery")
+    print("1#Ingest data into Bigquery using Merging-Sol")
     if get_bq_table():
         try:
             insertDataFrameToBQ(df)
@@ -671,24 +862,42 @@ if way=='merge':
     sp_job = client.query(sp_id_to_invoke)
 
 else:
-    df.to_csv(f"bq_storage_api/{data_name}_{way}.csv",index=False)
-    # invoke ingest_data_bq_storage_api
+    print("2#Ingest data into Bigquery using BQ-Storage-API-Sol")
+    csv_file=f"{data_name}_{way}.csv"
+    df.to_csv(f"{csv_file}",index=False)
+    
+    datetime_check=True
+    if len(datetime_list)>0:
+        print(f"All DateTime Columns to in ViewSource table on WebAdmin must be in table {view_name}")
+        print(f"There will be converted to  microseconds timestamp.")
+        datetime_check=check_fileds_in_view_source_in_web_admin_existing_in_database(view_name,datetime_list)
+        if datetime_check:
+            print(datetime_check)
+        else:
+            raise Exception(f"There are some columns are not in {app_table_name}")
+    
+    resutl=bq_cdc_stream_loader.db_to_bq_by_bq_storage_api(
+    csv_file=csv_file,
+    view_name=view_name,view_name_id=view_name_id,
+    datetimeCols=datetime_list,pk_fkCols=pk_fk_list,
+    projectId=projectId,main_dataset_id= main_dataset_id,table_name=data_name,
+    dt_imported=dt_imported    
+    )   
 
-
-# 
 
 # 
 # # Update New Recenet Update to file
 # 
 
-# In[29]:
+# In[53]:
 
 
+print("Update New Recenet Update to file")
 updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 updater.update_file() 
 
 
-# In[30]:
+# In[54]:
 
 
 print(datetime.now(timezone.utc) )
@@ -696,16 +905,11 @@ print(datetime.now(timezone.utc) )
 
 # # Add ETL transaction
 
-# In[31]:
+# In[55]:
 
 
 print("Add ETLTrans n-row as dataframe")   
-
-dfTran=pd.DataFrame(data={
-"trans_datetime":[str_dt_imported],"view_source_id":[admin_view_id],
- "no_rows":[len(df)],"is_consistent":[do_check_consistency()],"is_complete":[1]
-} )
-addETLTrans(dfTran.to_records(index=False) )
+add_tran(len(df),1)
 
 
 # In[ ]:
