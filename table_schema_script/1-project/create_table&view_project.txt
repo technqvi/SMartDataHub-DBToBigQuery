@@ -1,0 +1,48 @@
+create temp table
+
+
+CREATE OR REPLACE TABLE `SMartData_Temp.temp_project` (
+ project_id INT64,
+ enq STRING,
+ project_name STRING,
+ project_start DATE,
+ project_end DATE,
+ company_id INT64,
+ company  STRING,
+ has_pm BOOLEAN,
+ action  STRING
+)
+CLUSTER BY  action
+---------------------------------------------------------------
+
+create main table
+
+CREATE OR REPLACE TABLE `SMartDataAnalytics.project` (
+ project_id INT64,
+ enq STRING,
+ project_name STRING,
+ project_start DATE,
+ project_end DATE,
+ company_id INT64,
+ company  STRING,
+ has_pm BOOLEAN,
+ is_deleted BOOLEAN,
+ update_at TIMESTAMP
+)
+PARTITION BY DATE_TRUNC(project_start, MONTH)
+CLUSTER BY  company_id
+
+add pk and fk
+ALTER table SMartDataAnalytics.project   
+ADD primary key(project_id) NOT ENFORCED;
+
+
+----------------------------------
+
+create view in view_dataset
+
+
+CREATE VIEW View_SMartData.view_project AS (
+SELECT * FROM `SMartDataAnalytics.project` WHERE is_deleted=False
+and DateTIme(update_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)
+);
