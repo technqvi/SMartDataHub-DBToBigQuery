@@ -1,0 +1,45 @@
+
+CREATE  TABLE `SMartData_Temp.temp_pm_plan` (
+ pm_id INT64,
+ project_id INT64,
+
+ planned_date DATE,
+ ended_pm_date DATE,
+
+
+ pm_period  STRING,
+ team_lead STRING,
+
+ action  STRING
+)
+CLUSTER BY  action;
+
+
+CREATE  TABLE `SMartDataAnalytics.pm_plan` (
+  pm_id INT64,
+ project_id INT64,
+
+ planned_date DATE,
+ ended_pm_date DATE,
+
+ pm_period  STRING,
+ team_lead STRING,
+
+ is_deleted BOOLEAN,
+ update_at TIMESTAMP
+)
+PARTITION BY DATE_TRUNC(planned_date, MONTH)
+CLUSTER BY  planned_date,project_id, team_lead;
+
+
+ALTER table SMartDataAnalytics.pm_plan   
+ADD primary key(pm_id) NOT ENFORCED,
+ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
+
+
+
+
+CREATE VIEW View_SMartData.view_pm_plan AS (
+SELECT * FROM `SMartDataAnalytics.pm_plan` WHERE is_deleted=False
+and planned_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)
+);

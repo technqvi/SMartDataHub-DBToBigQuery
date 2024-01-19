@@ -1,7 +1,5 @@
-create temp table
 
-
-CREATE OR REPLACE TABLE `SMartData_Temp.temp_project` (
+CREATE TABLE `SMartData_Temp.temp_project` (
  project_id INT64,
  enq STRING,
  project_name STRING,
@@ -12,12 +10,10 @@ CREATE OR REPLACE TABLE `SMartData_Temp.temp_project` (
  has_pm BOOLEAN,
  action  STRING
 )
-CLUSTER BY  action
----------------------------------------------------------------
+CLUSTER BY  action;
 
-create main table
 
-CREATE OR REPLACE TABLE `SMartDataAnalytics.project` (
+CREATE  TABLE `SMartDataAnalytics.project` (
  project_id INT64,
  enq STRING,
  project_name STRING,
@@ -30,16 +26,13 @@ CREATE OR REPLACE TABLE `SMartDataAnalytics.project` (
  update_at TIMESTAMP
 )
 PARTITION BY DATE_TRUNC(project_start, MONTH)
-CLUSTER BY  company_id
+CLUSTER BY  project_start,company_id;
 
-add pk and fk
+
 ALTER table SMartDataAnalytics.project   
 ADD primary key(project_id) NOT ENFORCED;
 
 
-----------------------------------
-
-create view in view_dataset
 
 
 CREATE VIEW View_SMartData.view_project AS (

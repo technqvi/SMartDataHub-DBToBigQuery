@@ -1,0 +1,57 @@
+
+CREATE  TABLE `SMartData_Temp.temp_pm_item` (
+ pm_item_id INT64,
+ pm_id INT64,
+
+ is_pm BOOLEAN,
+
+ pm_engineer  STRING,
+ actual_date DATE,
+
+ document_date DATE,
+ document_engineer  STRING,
+
+ inventory_id INT64,
+
+ is_complete BOOLEAN,
+
+ action  STRING
+)
+CLUSTER BY  action;
+
+
+CREATE  TABLE `SMartDataAnalytics.pm_item` (
+ pm_item_id INT64,
+ pm_id INT64,
+
+ is_pm BOOLEAN,
+
+ pm_engineer  STRING,
+ actual_date DATE,
+
+ document_date DATE,
+ document_engineer  STRING,
+
+ inventory_id INT64,
+
+ is_complete BOOLEAN,
+
+ is_deleted BOOLEAN,
+ update_at TIMESTAMP
+)
+PARTITION BY DATE_TRUNC(update_at, MONTH)
+CLUSTER BY  pm_id,inventory_id;
+
+
+ALTER table SMartDataAnalytics.pm_item
+ADD primary key(pm_item_id) NOT ENFORCED,
+ADD FOREIGN KEY(pm_id) references SMartDataAnalytics.pm_plan(pm_id) NOT ENFORCED,
+ADD FOREIGN KEY(inventory_id) references SMartDataAnalytics.inventory(inventory_id) NOT ENFORCED;
+
+
+
+
+CREATE VIEW View_SMartData.view_pm_item AS (
+SELECT * FROM `SMartDataAnalytics.pm_item` WHERE is_deleted=False
+and DateTime(update_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)
+);

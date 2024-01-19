@@ -1,0 +1,44 @@
+CREATE  TABLE `SMartData_Temp.temp_inventory` (
+ inventory_id INT64,
+ serial_number STRING,
+ customer_warranty_start DATE,
+ customer_warranty_end DATE,
+brand STRING,
+model STRING,
+product_type STRING,
+ project_id INT64,
+ action  STRING
+)
+CLUSTER BY  action ;
+
+
+CREATE  TABLE `SMartDataAnalytics.inventory` (
+ inventory_id INT64,
+ serial_number STRING,
+ customer_warranty_start DATE,
+ customer_warranty_end DATE,
+brand STRING,
+model STRING,
+product_type STRING,
+ project_id INT64,
+ is_deleted BOOLEAN,
+ update_at TIMESTAMP
+)
+PARTITION BY DATE_TRUNC(customer_warranty_start, YEAR)
+CLUSTER BY  project_id,brand,model,product_type;
+
+
+ALTER table SMartDataAnalytics.inventory  
+ADD primary key(inventory_id) NOT ENFORCED,
+ADD FOREIGN KEY(project_id) references SMartDataAnalytics.project(project_id) NOT ENFORCED;
+
+
+
+
+CREATE VIEW View_SMartData.view_inventory AS (
+
+SELECT * FROM `SMartDataAnalytics.inventory` WHERE is_deleted=False
+and DateTIme(update_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)
+);
+
+
