@@ -8,7 +8,7 @@ LOAD_TO_BQ_TYPE = (
     ("bq-storage-api", "bq-storage-api"),
 )
 class ViewSource(models.Model):
-    name = models.CharField(verbose_name="View Name",max_length=255)
+    name = models.CharField(verbose_name="View Name",max_length=255,unique=True)
     main_source_table_name= models.CharField(verbose_name="Main Table Name",max_length=255,help_text="main table to create view.")
     load_type =    models.CharField(max_length = 50,choices = LOAD_TO_BQ_TYPE,
         default = '0',verbose_name='CDC-Load To BQ Type'

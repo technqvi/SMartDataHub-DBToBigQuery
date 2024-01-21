@@ -3,7 +3,7 @@
 
 # # Imported Library
 
-# In[18]:
+# In[105]:
 
 
 import psycopg2
@@ -45,17 +45,17 @@ import LoadPGToBQ_BQStorageAPI as  bq_cdc_stream_loader
 
 # # Init value
 
-# In[19]:
+# In[106]:
 
 
 is_py=True
-check_consistency=False
+check_consistency=True
 time_wait_for_bq=30
-view_name = "pmr_project"
+view_name = "pmr_pm_item"
 log = "models_logging_change"
 
 
-# In[20]:
+# In[107]:
 
 
 isFirstLoad=False
@@ -75,7 +75,7 @@ print(f"View name to load to BQ :{view_name}")
 
 # # Imported date
 
-# In[21]:
+# In[108]:
 
 
 dt_imported=datetime.now(timezone.utc) # utc
@@ -87,7 +87,7 @@ str_dt_imported=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 
 # # Read Configuration File 
 
-# In[22]:
+# In[109]:
 
 
 # Test config,env file and key to be used ,all of used key  are existing.
@@ -119,7 +119,7 @@ config,updater,data_base_file=get_config_file()
 
 # # Get Last Import to retrive data after that
 
-# In[23]:
+# In[110]:
 
 
 last_imported=datetime.strptime(updater["metadata"][view_name].value,"%Y-%m-%d %H:%M:%S")
@@ -132,7 +132,7 @@ print(f"UTC:{last_imported}  Of Last Import")
 
 # # Set Table Namd and StoreProc on BQ
 
-# In[24]:
+# In[111]:
 
 
 # pmr for merging
@@ -145,7 +145,7 @@ print(sp_name)
 
 # # SQLite
 
-# In[25]:
+# In[112]:
 
 
 sqlite3.register_adapter(np.int64, lambda val: int(val))
@@ -189,7 +189,7 @@ def addETLTrans(recordList):
 
 # # Postgres &BigQuery
 
-# In[26]:
+# In[113]:
 
 
 def get_postgres_conn():
@@ -220,7 +220,7 @@ def list_data(sql,params,connection):
 
 # # Get View Source  to set configuration data
 
-# In[27]:
+# In[114]:
 
 
 def get_view_source(name):
@@ -241,7 +241,7 @@ view_source= get_view_source(view_name)
 print(view_source)
 
 
-# In[28]:
+# In[115]:
 
 
 admin_view_id=view_source['id']
@@ -275,7 +275,7 @@ print(datetime_list)
 
 # # Filed/Columns Validation
 
-# In[29]:
+# In[116]:
 
 
 def check_fileds_in_view_source_in_web_admin_existing_in_database(x_name,x_list):
@@ -292,7 +292,7 @@ def check_fileds_in_view_source_in_web_admin_existing_in_database(x_name,x_list)
     return x_check
 
 
-# In[30]:
+# In[117]:
 
 
 print(f"All PK and FK in ViewSource table on WebAdmin must be in view {view_name}")
@@ -319,7 +319,7 @@ else:
 
 # # BigQuery Configuration
 
-# In[31]:
+# In[118]:
 
 
 projectId=config['PROJECT_ID']  # smart-data-ml  or kku-intern-dataai or ponthorn
@@ -348,7 +348,7 @@ client = bigquery.Client(credentials= credentials,project=projectId)
 def check_existing_table_return_schema(clien,x_table_id):
     try:
         table = client.get_table(x_table_id)  # Make an API request.
-        print("Table {} already exists.".format(table_id))
+        print("Table {} already exists.".format(x_table_id))
 
         schema = table.schema
         listTableSchema = [(field.name, field.field_type) for field in schema]
@@ -358,14 +358,15 @@ def check_existing_table_return_schema(clien,x_table_id):
     except NotFound as e:
         print("Table {} does not exist.".format(table_id))
         raise e
-
-table_schema=  check_existing_table_return_schema(client,table_id)    
+if way=='merge':
+    table_schema=  check_existing_table_return_schema(client,table_id)   
+    print(table_schema)
+    
 main_table_schema=  check_existing_table_return_schema(client,main_table_id)   
-print(table_schema)
 print(main_table_schema)
 
 
-# In[32]:
+# In[119]:
 
 
 def get_bq_table():
@@ -377,6 +378,11 @@ def get_bq_table():
  except NotFound:
     raise Exception("Table {} is not found.".format(table_id))
     
+def load_data_bq(sql:str):
+ query_result=client.query(sql)
+ print(sql)
+ df_all=query_result.to_dataframe()
+ return df_all
 
 def insertDataFrameToBQ(df_trasns):
     try:
@@ -394,16 +400,16 @@ def insertDataFrameToBQ(df_trasns):
 
 # # Check Data Consistency
 
-# In[33]:
+# In[120]:
 
 
 def do_check_consistency():
     check_result=True
     if check_consistency:
-         print("Wait in a while for biqguery to update")
+         print(f"Wait {time_wait_for_bq} seconds for biqguery to update")
          time.sleep(time_wait_for_bq)
          print("Check data consistency betwwen database and bigquery")
-         result=check_data.check_data_consistency_db_bq(view_name)
+         result=check_data.check_data_consistency_db_bq(view_source)
          if result:
             print("if result=True , view csv file in check_db_bq  data_consistence_check")  
             print("send email to admin to investigate somthing wrong.")
@@ -418,7 +424,7 @@ def do_check_consistency():
 
 # # Add transaction 
 
-# In[34]:
+# In[121]:
 
 
 def add_tran(x_no_rows,x_is_complete):
@@ -432,13 +438,18 @@ def add_tran(x_no_rows,x_is_complete):
 
 # # Check whether it is the first loading?
 
-# In[35]:
+# In[122]:
 
 
 def checkFirstLoad():
     print("If the main table is empty , so the action of each row  must be 'added' on temp table")
-    rows_iter   = client.list_rows(main_table_id, max_results=1) 
-    no_main=len(list(rows_iter))
+    if way=='merge':
+        rows_iter   = client.list_rows(main_table_id, max_results=1) 
+        no_main=len(list(rows_iter))
+    elif way=='bq-storage-api':
+        sql=f"select count(*) from {main_table_id}"
+        dfx=load_data_bq(sql)
+        no_main=dfx.iloc[0,0]
     if no_main==0:
      isFirstLoad=True
      print(f"This is the first loaing , so there is No DATA in {main_table_id}, we load all rows from {view_name} to import into {table_id} action will be 'added' ")
@@ -446,12 +457,14 @@ def checkFirstLoad():
      isFirstLoad=False   
     return isFirstLoad
 
-
-# In[36]:
-
-
 isFirstLoad=checkFirstLoad()
 print(f"IsFirstLoad={isFirstLoad} for {data_name}")
+
+
+# In[ ]:
+
+
+
 
 
 # # For The next Load
@@ -459,7 +472,7 @@ print(f"IsFirstLoad={isFirstLoad} for {data_name}")
 # * Get all actions from log table by selecting unique object_id and setting by doing something as logic
 # * Create  id and action dataframe form filtered rows from log table
 
-# In[37]:
+# In[123]:
 
 
 def list_model_log(x_last_imported,x_content_id):
@@ -481,7 +494,7 @@ def list_model_log(x_last_imported,x_content_id):
 
 # # Find Change in Mappping
 
-# In[38]:
+# In[124]:
 
 
 def findChangeInListMapping(changed_data):
@@ -527,7 +540,7 @@ def check_no_changes_to_columns_view_only_changed_action(dfAction,x_view_name,_x
     
 
 
-# In[39]:
+# In[125]:
 
 
 listForRemove=[]
@@ -577,7 +590,7 @@ def select_actual_action(lf):
 
 
 
-# In[41]:
+# In[126]:
 
 
 print("Process finding actual action, if there is no any rows in model logging then exit()")
@@ -589,7 +602,7 @@ if isFirstLoad==False:
     if dfModelLog.empty==True:
 
         add_tran(0,1)
-        print("No row to be imported prior to processing finding actual final aciton.")
+        print("No row to be imported prior to processing finding actual final action.")
         exit()
     else:
         print("Get row imported from model log to set action") 
@@ -607,7 +620,7 @@ if isFirstLoad==False:
 
 # # Load view by object id 
 
-# In[42]:
+# In[127]:
 
 
 def retrive_next_data_from_view(x_view,x_id,x_listModelLogObjectIDs):
@@ -644,7 +657,7 @@ def retrive_one_row_from_view_to_gen_df_schema_for_all_deleted_action(x_view):
     
 
 
-# In[45]:
+# In[128]:
 
 
 print("Before process finding actual action, if there is no any rows after removing id ")
@@ -679,7 +692,7 @@ print(df.info())
 #   * If there is one deletd row then  we will merge it to master dataframe
 # * IF the next load has only deleted action
 
-# In[46]:
+# In[129]:
 
 
 def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
@@ -718,7 +731,7 @@ def add_acutal_action_to_df_at_next(df,dfUpdateData,x_view,x_id):
 
 
 
-# In[47]:
+# In[130]:
 
 
 if isFirstLoad==False:
@@ -734,13 +747,13 @@ print(df)
 
 # # Check duplicate ID & reset index & convert all pk&fk to int64
 
-# In[48]:
+# In[131]:
 
 
 print("Last Step :Check duplicate ID & reset index & convert all pk&fk to int64")
 
 
-# In[49]:
+# In[132]:
 
 
 hasDplicateIDs = df[view_name_id].duplicated().any()
@@ -761,7 +774,7 @@ print(df)
 # # Schema Validation
 # 
 
-# In[50]:
+# In[133]:
 
 
 print("Column name validation")
@@ -795,7 +808,7 @@ main_result=df_vs_bq(mainDFColsV,mainBQColsV)
 # ## Error in code as detail
 # * error if some column in dataframe contain null , it is interpreted to object type   depsite having excact tppy define in bigquery data schema such as actual date,docuemnt dat in pm_item or close_incident_date in incident
 
-# In[51]:
+# In[134]:
 
 
 # BQ_TO_DF_DATA_TYPE_MAPPING= \
@@ -844,7 +857,7 @@ main_result=df_vs_bq(mainDFColsV,mainBQColsV)
 
 # # Insert data to BQ data frame & # Run StoreProcedure To Merge Temp&Main and Truncate Transaction 
 
-# In[52]:
+# In[135]:
 
 
 if way=='merge':
@@ -889,7 +902,7 @@ else:
 # # Update New Recenet Update to file
 # 
 
-# In[53]:
+# In[136]:
 
 
 print("Update New Recenet Update to file")
@@ -897,7 +910,7 @@ updater["metadata"][view_name].value=dt_imported.strftime("%Y-%m-%d %H:%M:%S")
 updater.update_file() 
 
 
-# In[54]:
+# In[137]:
 
 
 print(datetime.now(timezone.utc) )
@@ -905,7 +918,7 @@ print(datetime.now(timezone.utc) )
 
 # # Add ETL transaction
 
-# In[55]:
+# In[138]:
 
 
 print("Add ETLTrans n-row as dataframe")   

@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[36]:
-
-
 import psycopg2
 from psycopg2 import sql
 import psycopg2.extras as extras
@@ -23,23 +17,21 @@ import sys
 from configupdater import ConfigUpdater
 
 
-# In[37]:
-
-
-def check_data_consistency_db_bq(view_name):
+def check_data_consistency_db_bq(view_source_sr):
     """
-    check data consistency import between database and bigquery at the time
+    Check the total number of rows   between view on database and table bigquery at the time , Both are equal
     Args:
-    view_name: view written in database for desired data retrieval
+    view_source_sr (pandas.Series): the  view source retrieved sent from view_source table in  etl_web_admin
+
 
     Returns:
-    If false then data is ok but true  them some roww in database have not beem imported to biqquery
+    If False then data is ok but True  them some rows in database have not been  the same data imported to BiqQuery
 
     """
-
-
-
-    # In[38]:
+    print("Get Configuration data")
+    view_name=view_source_sr['name']
+    key_id=view_source_sr['app_key_name']
+    load_type=view_source_sr['load_type']
 
 
     cfg_path="cfg_last_import"
@@ -56,30 +48,7 @@ def check_data_consistency_db_bq(view_name):
     print(str_date_imported)
 
 
-    # In[39]:
-
-
-    def get_key_id_by_view_name(view_name):
-
-        if view_name == "pmr_pm_plan":
-            key_name = "pm_id"
-        elif view_name == "pmr_pm_item":
-            key_name = "pm_item_id"
-        elif view_name == "pmr_project":
-            key_name = "project_id"
-        elif view_name == "pmr_inventory":
-            key_name = "inventory_id"     
-        elif view_name == "xyz_incident":
-            key_name = "incident_id"   
-        else:
-            raise Exception("No specified content type id")
-
-        return key_name                       
-    key_id=get_key_id_by_view_name(view_name)
-    print(key_id)
-
-
-    # # Config DB and BQ
+    print("Config DB and BQ")
 
     # In[40]:
 
@@ -95,13 +64,13 @@ def check_data_consistency_db_bq(view_name):
     projectId=config["PROJECT_ID"]
     credentials = service_account.Credentials.from_service_account_file(config["PROJECT_CREDENTIAL_FILE"])
     client = bigquery.Client(credentials=credentials, project=projectId)
-    dw_dataset_id="SMartDataAnalytics"
+    dw_dataset_id=config["MAIN_DATASET"]
 
     dw_table_id = f"{projectId}.{dw_dataset_id}.{bq_table_name}"
     print(dw_table_id)
 
 
-    # # Postgres &BigQuery
+    print("Postgres & BigQuery")
 
     # In[41]:
 
@@ -138,7 +107,7 @@ def check_data_consistency_db_bq(view_name):
      return df_all
 
 
-    # # Get data from View on Postgres DB
+    print("Get data from View on Postgres DB")
 
     # In[42]:
 
@@ -154,15 +123,18 @@ def check_data_consistency_db_bq(view_name):
     dfDB.info()
 
 
-    # # Get data from Main table on BigQuery
+    print("Get data from Main table on BigQuery")
 
-    # In[43]:
 
 
     def Get_ID_BQ():
-        sql_bq=f"""
-        SELECT {key_id} FROM `{dw_table_id}` WHERE  is_deleted=False
-        """
+        if load_type=='merge':
+            sql_bq=f""" SELECT {key_id} FROM `{dw_table_id}` WHERE  is_deleted=False """
+        elif load_type =='bq-storage-api':
+            sql_bq = f""" SELECT {key_id} FROM `{dw_table_id}` """
+        else:
+            raise Exception(f"Not found load type {load_type}")
+
         print(sql_bq)
         df=load_data_bq(sql_bq)
         return df
@@ -171,7 +143,7 @@ def check_data_consistency_db_bq(view_name):
     dfBQ.info()
 
 
-    # # Comparision
+    print("Comparison")
 
     # In[44]:
 
@@ -218,13 +190,13 @@ def check_data_consistency_db_bq(view_name):
     dbIDs,bqIDs=find_diff_id(dfDB,dfBQ)  
 
 
-    # # Get data from SMARTDB that have been synchoize to BigQuery
+    print("Get data from SMARTDB that have been synchoize to BigQuery")
 
     # In[45]:
 
 
     print("Get data from SMARTDB that have been synchoize to BigQuery")
-    def get_comming_data(x_dbIDs,id):
+    def export_inconsistent_data(x_dbIDs,id):
         if len(x_dbIDs)>0:
             x_dbIDs=[str(id) for id in x_dbIDs ]
             x_dbIDs="({})".format(",".join(x_dbIDs))
@@ -246,7 +218,7 @@ def check_data_consistency_db_bq(view_name):
             return False
 
 
-    result=get_comming_data(dbIDs,key_id)   
+    result=export_inconsistent_data(dbIDs,key_id)
     print(result)
 
 
