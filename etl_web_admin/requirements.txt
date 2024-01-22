@@ -21,3 +21,4 @@ tzdata==2023.4
 tzlocal==5.2
 urllib3==2.1.0
 pandas
+numpy

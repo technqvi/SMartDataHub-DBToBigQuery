@@ -14,25 +14,27 @@ CREATE TABLE "etl_transaction" (
 );
 
 
-----------------------DONT'T DO IT--------------------
+
+
+
+
+
+--------------DON'T DO IT-----------------------
 DROP TABLE   view_source;
 CREATE TABLE "view_source" (
 	"id"	INTEGER,
 	"name"	INTEGER NOT NULL UNIQUE,
-	"load_type"	TEXT NOT NULL,
-	"app_conten_type_id"	INTEGER NOT NULL,
-	"app_key_name"	TEXT NOT NULL,
-	"app_changed_field_mapping"	TEXT NOT NULL,
-	"app_pk_name_list"	TEXT,
-	"app_datetime_field_list"	TEXT,
+        "load_type"  TEXT NOT NULL,
+        "app_conten_type_id"   INTEGER NOT NULL,
+        "app_key_name" TEXT NOT NULL,
+        "app_changed_field_mapping" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
+
 
 ---------------------------------
 DELETE FROM sqlite_sequence WHERE name='etl_transaction';
 DELETE FROM sqlite_sequence WHERE name='view_source';
-
-
 LOAD_TO_BQ_TYPE = (
     ("merge", "merge"),
     ("bq-storage-api", "bq-storage-api"),

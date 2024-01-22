@@ -1,3 +1,4 @@
 from django.test import TestCase
 
-# Create your tests here.
+# Take models.py in this python Django project to generate unit tests  
+

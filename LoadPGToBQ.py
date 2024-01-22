@@ -49,7 +49,7 @@ import LoadPGToBQ_BQStorageAPI as  bq_cdc_stream_loader
 
 
 is_py=True
-check_consistency=True
+check_consistency=False
 time_wait_for_bq=30
 view_name = "pmr_pm_item"
 log = "models_logging_change"

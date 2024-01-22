@@ -17,6 +17,14 @@ import sys
 from configupdater import ConfigUpdater
 
 
+# create pandas series named view_source
+# view_source_data={'name':'pmr_project','app_key_name':'project_id','load_type':'merge'}
+# view_source_sr=pd.Series( data=view_source_data   )
+# print(view_source_sr)
+
+# config = dotenv_values(dotenv_path=r"D:\PythonDev\MyQuantFinProject\SMartDataHub-DBToBigQuery\.env")
+# print(config)
+
 def check_data_consistency_db_bq(view_source_sr):
     """
     Check the total number of rows   between view on database and table bigquery at the time , Both are equal
@@ -77,34 +85,35 @@ def check_data_consistency_db_bq(view_source_sr):
 
     def get_postgres_conn():
      try:
-      conn = psycopg2.connect(
+        conn = psycopg2.connect(
             database=config['DATABASES_NAME'], user=config['DATABASES_USER'],
-          password=config['DATABASES_PASSWORD'], host=config['DATABASES_HOST']
-         )
-      return conn
+            password=config['DATABASES_PASSWORD'], host=config['DATABASES_HOST']
+            )
+        return conn
 
      except Exception as error:
-      print(error)      
-      raise error
+        print(error)      
+        raise error
     def list_data_pg(sql,params,connection):
      df=None   
      with connection.cursor() as cursor:
 
         if params is None:
-           cursor.execute(sql)
+            cursor.execute(sql)
         else:
-           cursor.execute(sql,params)
+            cursor.execute(sql,params)
 
         columns = [col[0] for col in cursor.description]
         dataList = [dict(zip(columns, row)) for row in cursor.fetchall()]
         df = pd.DataFrame(data=dataList) 
+
      return df 
 
     def load_data_bq(sql:str):
 
-     query_result=client.query(sql)
-     df_all=query_result.to_dataframe()
-     return df_all
+        query_result=client.query(sql)
+        df_all=query_result.to_dataframe()
+        return df_all
 
 
     print("Get data from View on Postgres DB")

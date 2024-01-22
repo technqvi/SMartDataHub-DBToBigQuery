@@ -1,13 +1,23 @@
 demo-version
 https://cloud.google.com/blog/products/data-analytics/bigquery-gains-change-data-capture-functionality
 https://protobuf.dev/getting-started/pythontutorial/
-
 https://console.cloud.google.com/apis/library/bigquerystorage.googleapis.com?project=pongthorn
 
------------------------
+
+https://pypi.org/project/google-cloud-bigquery-storage/
+pip install google-cloud-bigquery-storage==2.24.0
+
+pip install protobuf==3.20.3  (tensorflow 2.12)
+https://github.com/protocolbuffers/protobuf/tree/main/python
+
+install window compile software
+https://github.com/protocolbuffers/protobuf/releases/tag/v25.1
+
+
+-----------------------------------------------------------------------------
 incident script
 
-CREATE OR REPLACE TABLE `pongthorn.SMartDataAnalytics.incident` (
+CREATE OR REPLACE TABLE `SMartDataAnalytics.incident` (
  incident_id INT64,
  inventory_id INT64,
  incident_type STRING,
@@ -27,7 +37,9 @@ ADD primary key(incident_id) NOT ENFORCED,
 ADD FOREIGN KEY(inventory_id) references SMartDataAnalytics.inventory(inventory_id) NOT ENFORCED;
 -------------------------------------------
 
-ALTER TABLE `pongthorn.SMartDataAnalytics.incident`
+
+
+ALTER TABLE `SMartDataAnalytics.incident`
 SET OPTIONS (
  max_staleness = INTERVAL 0 MINUTE);
 -------------------------------------------------------------------------------------

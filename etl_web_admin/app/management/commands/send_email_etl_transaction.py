@@ -35,7 +35,7 @@ class Command(BaseCommand):
             tradsnHTMLContent=transDF.to_html(index=False)
 
             # send email 
-            title=f"CSC PostgresDB-TO-BQ : ETL Transaction on {today_str}"
+            title=f"PostgresDB-TO-BQ : ETL Transaction on {today_str}"
             message=tradsnHTMLContent
             listRecipients =settings.EMAIL_ADMIN_FOR_MONTHLY_NOTIFICATION
             email_info = {'subject': title, 'message': message, 'send_to': listRecipients}
