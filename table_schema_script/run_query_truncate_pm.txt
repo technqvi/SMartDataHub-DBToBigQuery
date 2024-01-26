@@ -5,31 +5,31 @@ select count(*) as project from pmr_project where  is_dummy=false and updated_at
 
 
 
-SELECT count(*) FROM `pongthorn.SMartDataAnalytics.pm_plan` WHERE  is_deleted=False;
-SELECT count(*) FROM `pongthorn.SMartDataAnalytics.pm_item` WHERE  is_deleted=False
-SELECT count(*) FROM `pongthorn.SMartDataAnalytics.inventory` WHERE  is_deleted=False
-SELECT count(*) FROM `pongthorn.SMartDataAnalytics.project` WHERE  is_deleted=False
+SELECT count(*) FROM `SMartDataAnalytics.pm_plan` WHERE  is_deleted=False;
+SELECT count(*) FROM `SMartDataAnalytics.pm_item` WHERE  is_deleted=False
+SELECT count(*) FROM `SMartDataAnalytics.inventory` WHERE  is_deleted=False
+SELECT count(*) FROM `SMartDataAnalytics.project` WHERE  is_deleted=False
 
-SELECT count(*) FROM `smart-data-ml.SMartDataAnalytics.pm_plan` WHERE  is_deleted=False;
-SELECT count(*) FROM `smart-data-ml.SMartDataAnalytics.pm_item` WHERE  is_deleted=False
-SELECT count(*) FROM `smart-data-ml.SMartDataAnalytics.inventory` WHERE  is_deleted=False
-SELECT count(*) FROM `smart-data-ml.SMartDataAnalytics.project` WHERE  is_deleted=False
-
-
+SELECT count(*) FROM `SMartDataAnalytics.pm_plan` WHERE  is_deleted=False;
+SELECT count(*) FROM `SMartDataAnalytics.pm_item` WHERE  is_deleted=False
+SELECT count(*) FROM `SMartDataAnalytics.inventory` WHERE  is_deleted=False
+SELECT count(*) FROM `SMartDataAnalytics.project` WHERE  is_deleted=False
 
 
 
--- truncate table `pongthorn.SMartData_Temp.temp_pm_plan` ;
--- truncate table `pongthorn.SMartDataAnalytics.pm_plan`;
-
--- truncate table `pongthorn.SMartData_Temp.temp_pm_item` ;
--- truncate table `pongthorn.SMartDataAnalytics.pm_item`;
 
 
+-- truncate table `SMartData_Temp.temp_pm_plan` ;
+-- truncate table `SMartDataAnalytics.pm_plan`;
 
--- truncate table `pongthorn.SMartData_Temp.temp_inventory` ;
--- truncate table `pongthorn.SMartDataAnalytics.inventory`;
+-- truncate table `SMartData_Temp.temp_pm_item` ;
+-- truncate table `SMartDataAnalytics.pm_item`;
 
 
-truncate table `pongthorn.SMartData_Temp.temp_project` ;
-truncate table `pongthorn.SMartDataAnalytics.project`;
+
+-- truncate table `SMartData_Temp.temp_inventory` ;
+-- truncate table `SMartDataAnalytics.inventory`;
+
+
+truncate table `SMartData_Temp.temp_project` ;
+truncate table `SMartDataAnalytics.project`;
