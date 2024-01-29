@@ -1,6 +1,8 @@
 # SMartDataHub-DBToBigQuery
 Ingest data from [PostgreSQL](https://www.postgresql.org/) database that store  data for [SMartApp](https://github.com/technqvi/SMartApp)  to [BigQuery](https://cloud.google.com/bigquery?hl=en) by capturing every transaction in the database periodically for keeping data consistency. Please review how it works as figure and description below.
  <img width="1214" alt="process" src="https://github.com/technqvi/SMartDataHub-DBToBigQuery/assets/38780060/9807ceb9-fb0c-47b8-9015-37e668223dd0">
+## Merging Solution
+## Bigquery Storage-API
 
 
 
