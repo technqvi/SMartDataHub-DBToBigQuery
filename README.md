@@ -9,7 +9,7 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that store  
 # Program Structre
 
 
-# References Solution
+## References Solution
 * Merge Solitons
   * [MERGE statement on Bigquery](https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables#using_a_merge_statement)
   * [Mergeing data for Change Data Capture with GCP BigQuery](https://nileshk611.medium.com/change-data-capture-with-gcp-bigquery-6b09aec400bc)
