@@ -10,10 +10,18 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores 
 * Truncate temporary table.
 
 ### 2.2 Bigquery Storage-API Solution to BigQuery(Sol2)
-* Create  .proto file aligned with your data schema and compile file to .py as Protocol Buffer
+* Create  .proto file aligned with your data schema and compile file to .py to comply with Protocol Buffer
+* Read csv file as datframe  and do data transformation to get data ready to ingest to Bigquery
+  * Convert datetime to timestamp as Microseconds
+  * Add _CHANGE_TYPE(action type) such as UPSERT,DELETE
+  * Fill null value with default value.
+* Write JSON file from DataFrame such as Upsert file and Delete file.
+* Write JSON data  as buffer protocol stream to BigQuery via  BigQuery Storage-API.
+
 
 
 # Program Structure
+
 
 
 ## References Solution
