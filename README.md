@@ -21,7 +21,14 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores 
 
 
 # Program Structure
-
+* [LoadPGToBQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ.py)
+* [LoadPGToBQ_BQStorageAPI.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ_BQStorageAPI.py)
+* [smart_bq_storage_api](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/smart_bq_storage_api)
+* [CheckDataCons_DB_BQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/CheckDataCons_DB_BQ.py) 
+* [etl_web_admin](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/etl_web_admin)
+* [table_schema_script](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/table_schema_script)
+* [unittest](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/unittest)
+* [google_ai_py3.10.yml](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/google_ai_py3.10.yml)
 
 
 ## References Solution
