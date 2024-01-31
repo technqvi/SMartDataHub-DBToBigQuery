@@ -10,6 +10,7 @@ ScriptJob/
 *.pbix
 *.vsdx
 *.ndjson
+*.json
 
 data_consistence_check
 incident_bq-storage-api.csv
