@@ -21,14 +21,14 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores 
 
 
 # Program Structure
-* [LoadPGToBQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ.py)
-* [LoadPGToBQ_BQStorageAPI.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ_BQStorageAPI.py)
-* [smart_bq_storage_api](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/smart_bq_storage_api)
-* [CheckDataCons_DB_BQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/CheckDataCons_DB_BQ.py) 
-* [etl_web_admin](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/etl_web_admin)
-* [table_schema_script](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/table_schema_script)
-* [unittest](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/unittest)
-* [google_ai_py3.10.yml](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/google_ai_py3.10.yml)
+* [LoadPGToBQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ.py) : Collect changed data for importing as dataframe to temp table on BigQuery.
+* [LoadPGToBQ_BQStorageAPI.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ_BQStorageAPI.py) : convert dataframe to JSON file aligned with Protocal Buffer BigQuery Storage-API.
+* [smart_bq_storage_api](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/smart_bq_storage_api) : writte json file to BigQuery Storage-API.
+* [CheckDataCons_DB_BQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/CheckDataCons_DB_BQ.py) : Run test data consistency between PostgreSQL and BigQuery.
+* [etl_web_admin](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/etl_web_admin) : Web administration by Django to store table view configuration metadata and log ETL Transaction.
+* [table_schema_script](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/table_schema_script) : Script to create table , constraint  and view on Database and BigQuery including sample sql query.
+* [unittest](https://github.com/technqvi/SMartDataHub-DBToBigQuery/tree/main/unittest) : Unit test for LoadPGToBQ.py and LoadPGToBQ_BQStorageAPI.py.
+* [google_ai_py3.10.yml](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/google_ai_py3.10.yml) : Create python anaconda envrionment for building this project. 
 
 
 ## References Solution
