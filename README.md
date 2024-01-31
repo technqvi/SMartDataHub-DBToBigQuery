@@ -1,9 +1,11 @@
 # SMartDataHub-DBToBigQuery
 Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores  data for [SMartApp](https://github.com/technqvi/SMartApp)  to [BigQuery](https://cloud.google.com/bigquery?hl=en) by capturing every transaction in the database periodically to maintain data integrity and consistency between Source(PostgreSQL) and Target(BigQuery). Please review how it works as figure and description below. Primarily, there are 2 steps the  as described below
 <img width="1214" alt="process" src="https://github.com/technqvi/SMartDataHub-DBToBigQuery/assets/38780060/d61faef2-d0c8-4830-a72c-60323dc13d07">
-### 1#Identifying and Capturing All Changed Data in a Django Database 
-### 2.1#Merge Solution To BigQuery (Sol1)
-### 2.2#Bigquery Storage-API Solution to BigQuery(Sol2)
+### 1. Identifying and Capturing All Changed Data in a Django Database 
+    *  Collect changed data by object id of the content type (project,inventory,pm plan and pmplan item)  from models_logging_change table ((Django Models Logging)https://github.com/legion-an/django-models-logging]) to identify the actual action type such as added, deleted and chanaged status.
+    *  Take list of all objectIds collected from previous step including actoin type to query data from transactional table (project,inventory,pm plan and pmplan item) .
+### 2.1 Merge Solution To BigQuery (Sol1)
+### 2.2 #Bigquery Storage-API Solution to BigQuery(Sol2)
 
 
 
