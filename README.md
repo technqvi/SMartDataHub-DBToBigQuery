@@ -3,7 +3,7 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores 
 <img width="1214" alt="process" src="https://github.com/technqvi/SMartDataHub-DBToBigQuery/assets/38780060/d61faef2-d0c8-4830-a72c-60323dc13d07">
 ### 1. Identifying and Capturing All Changed Data in a Django Database 
 * Collect every changed data by object id of the content type (project,inventory,pm plan and pm item)  from models_logging_change table ([Django Models Logging](https://github.com/legion-an/django-models-logging)) to identify the actual action type such as added, deleted and chanaged status.
-* Take list of all objectIds collected from previous step including action type to query data from transactional table (project,inventory,pm plan and pm item) .
+* Take list of all objectIds collected from previous step including action type to pull  data from transactional table (project,inventory,pm plan and pm item) .
 ### 2.1 Merge Solution To BigQuery (Sol1)
 * Import data as dataframe to temporary table
 * Run stored procedure to merge  data from temporary table to target table based on condition like added,changed or deleted status , if it is the deleted status the it is flagged as deleted in target table as opposed to actual delete.
