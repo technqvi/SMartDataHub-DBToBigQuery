@@ -21,7 +21,8 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores 
 * Write JSON file from DataFrame such as Upsert file and Delete file.
 * Write JSON data  as buffer protocol stream to BigQuery via  BigQuery Storage-API.
 
-
+# Web Administration
+<img width="926" alt="admin" src="https://github.com/technqvi/SMartDataHub-DBToBigQuery/assets/38780060/e2852cc3-163c-431e-bb50-e6ee20eadc89">
 
 # Program Structure
 * [LoadPGToBQ.py](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/LoadPGToBQ.py) : Collect changed data for importing as dataframe to temp table on BigQuery.
