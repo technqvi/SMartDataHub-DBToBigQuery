@@ -11,7 +11,7 @@ ScriptJob/
 *.vsdx
 *.ndjson
 *.json
-
+Docs
 data_consistence_check
 incident_bq-storage-api.csv
 o365_token.txt
