@@ -1,6 +1,7 @@
 create view xyz_incident
             (incident_id, inventory_id, incident_type, service_type, severity, status, open_datetime, close_datetime,
-             updated_at) as
+             incident_owner, updated_at)
+as
 SELECT abc.id                                                                                      AS incident_id,
        abc.inventory_id,
        (SELECT x.incident_type_name
@@ -17,9 +18,13 @@ SELECT abc.id                                                                   
         WHERE x.id = abc.incident_status_id)                                                       AS status,
        to_char((abc.incident_datetime AT TIME ZONE 'UTC'::text), 'YYYY-MM-DD HH24:MI'::text)       AS open_datetime,
        to_char((abc.incident_close_datetime AT TIME ZONE 'UTC'::text), 'YYYY-MM-DD HH24:MI'::text) AS close_datetime,
+       (SELECT x.employee_name
+        FROM app_employee x
+        WHERE x.id = abc.incident_owner_id)                                                        AS incident_owner,
        abc.updated_at
 FROM app_incident abc
 WHERE abc.incident_status_id <> 3;
 
 alter table xyz_incident
     owner to postgres;
+

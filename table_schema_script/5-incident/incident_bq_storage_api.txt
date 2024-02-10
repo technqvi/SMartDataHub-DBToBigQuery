@@ -26,6 +26,7 @@ CREATE OR REPLACE TABLE `SMartDataAnalytics.incident` (
  status  STRING,
  open_datetime TIMESTAMP,
  close_datetime TIMESTAMP,
+ incident_owner,
  update_at TIMESTAMP
 )
 PARTITION BY DATE_TRUNC(open_datetime, MONTH)
@@ -44,11 +45,11 @@ SET OPTIONS (
  max_staleness = INTERVAL 0 MINUTE);
 -------------------------------------------------------------------------------------
 
-C:\protoc-25.1-win64\bin
-run compile proto file to get xxxx_pb2.py
-d:
-cd D:\PythonDev\MyQuantFinProject\SMartDataHub-DBToBigQuery\bq_storage_api
-C:\protoc-25.1-win64\bin\protoc.exe  --python_out=. incident_data.proto
+
+run compile proto file to get xxxx_pb2.py as detail
+protoc_25.1_win64\bin\protoc.exe  --python_out=. incident_data.proto
+
+
 
 
 SELECT * FROM `pongthorn.SMartDataAnalytics.incident` 

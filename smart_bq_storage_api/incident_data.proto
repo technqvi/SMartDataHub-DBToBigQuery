@@ -12,6 +12,7 @@ message IncidentData {
   optional string status = 6;
   optional int64 open_datetime = 7;
   optional int64 close_datetime = 8;
-  optional int64 update_at = 9;
-  optional string _CHANGE_TYPE = 10;
+  optional string incident_owner = 9;
+  optional int64 update_at = 10;
+  optional string _CHANGE_TYPE = 11;
 }
