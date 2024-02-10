@@ -1,0 +1,12 @@
+
+CREATE MATERIALIZED VIEW View_SMartData.view_incident 
+PARTITION BY DATE_TRUNC(open_datetime, MONTH) 
+CLUSTER BY  open_datetime,status,severity,incident_type
+AS (
+SELECT
+  * EXCEPT(close_datetime),
+  IF(date(close_datetime)= '1970-01-01', NULL, close_datetime) AS close_datetime
+FROM
+  `SMartDataAnalytics.incident`
+
+);
