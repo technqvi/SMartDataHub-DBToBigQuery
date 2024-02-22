@@ -43,6 +43,14 @@ FROM
 where DateTime(update_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR)
 );
 
+OR
+SELECT
+  * EXCEPT(close_datetime),
+  IF(date(close_datetime)= '1970-01-01', NULL, close_datetime) AS close_datetime
+FROM
+  `SMartDataAnalytics.incident`
+WHERE open_datetime >=TIMESTAMP( DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY), MONTH))
+
 --------------------------------------------------------------------------------------------------------
 
 demo-version

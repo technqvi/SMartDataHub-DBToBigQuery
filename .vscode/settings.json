@@ -3,9 +3,10 @@
     "python.testing.unittestEnabled": true,
     "python.testing.pytestArgs": [
         "-v",
+        "-s",
         "./tests",
-        "-k",
-        "test_pytest_*.py"
+        "-p",
+        "test_*.py"
     ],
     "python.testing.unittestArgs": [
         "-v",
