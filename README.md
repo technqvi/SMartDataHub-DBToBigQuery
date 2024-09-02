@@ -7,7 +7,7 @@ Ingest data from [PostgreSQL](https://www.postgresql.org/) database that stores 
 * Take list of all objectIds collected from previous step including action type to pull  data from transactional table (project,inventory,pm plan and pm item) .
 ### 2.1 Merge Solution To BigQuery (Sol1)
 * Import data as dataframe to temporary table
-* Run stored procedure to merge  data from temporary table to target table based on action type condition  as below.
+* [Run stored procedure to merge data](https://github.com/technqvi/SMartDataHub-DBToBigQuery/blob/main/table_schema_script/3-pm_plan/merge_pm_plan.txt) from temporary table to target table based on action type condition  as below.
   * Added : run sql insert statement.
   * Changed : run sql update statement.
   * Deleted: run sql update statement to set only is_deleted culumn to be True as opposed to using sql delete statement.
